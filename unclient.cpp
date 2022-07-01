@@ -1,56 +1,99 @@
 #include <stdio.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 #include <strings.h>
-#include <string.h>
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <unistd.h>
-
 #include <iostream>
 #include <string>
 
-#define SOCKET_PATH "./domainsocket"
-#define MSG_SIZE 2048
+#include "shm.h"
+#include "ipc.h"
 
-int main()
+using namespace std;
+int 
+main()
 {
-    int socket_fd;
-	int ret = 0;
-	char msg[MSG_SIZE];
-	struct sockaddr_un server_addr;
+	int 	ret = 0;
+    int 	socket_fd;
+	char 	socket_msg[SOCKET_MSG_SIZE];
+	struct 	sockaddr_un server_addr;
 
-    // 1. 创建域套接字
+    // create socket
 	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
 	if(-1 == socket_fd){
-		std::cout << "Socket create failed!" << std::endl;
+		cout << "Socket create failed!" << endl;
 		return -1;
 	}
     
-    // 内存区域置0
+    // reset 0
 	bzero(&server_addr,sizeof(server_addr));
 	server_addr.sun_family = PF_UNIX;
 	strcpy(server_addr.sun_path, SOCKET_PATH);
 
-    // 2. 连接域套接字
+    // connect socket
 	ret = connect(socket_fd, (sockaddr *)&server_addr, sizeof(server_addr));
 
 	if(-1 == ret){
-		std::cout << "Connect socket failed" << std::endl;
+		cout << "Connect socket failed" << endl;
 		return -1;
 	}
 
 	
-	std::cout << "Input file path>>> ";
-	fgets(msg, MSG_SIZE, stdin);
-	// 3. 发送信息
-	ret = send(socket_fd, msg, MSG_SIZE, 0);
+	cout << "Input file path>>> ";
+	fgets(socket_msg, SOCKET_MSG_SIZE, stdin);			// todo path validation
+	// send file path
+	ret = send(socket_fd, socket_msg,  SOCKET_MSG_SIZE, 0);
 
-	// int shm_fd = 777;
-	// std::string shm_fd_msg = std::to_string(shm_fd);
-	// ret = send(socket_fd, shm_fd_msg.c_str(), shm_fd_msg.size(), 0);		todo: real shm
-	
+    // create and map shared memory
+	struct shmstruct    *ptr;
+	string shm_name = "shm" + to_string(getpid());
+	shm_unlink(shm_name.c_str());        /* OK if this fails */
+    int shm_fd = shm_open(shm_name.c_str(), O_RDWR | O_CREAT | O_EXCL, FILE_MODE);
+	ftruncate(shm_fd, sizeof(struct shmstruct));
+    ptr = (shmstruct *)mmap(NULL, sizeof(struct shmstruct), PROT_READ | PROT_WRITE,
+               MAP_SHARED, shm_fd, 0);
+	close(shm_fd);
+	ret = send(socket_fd, shm_name.c_str(), shm_name.size(), 0);
+
+
+	// initialize
+    for (int index = 0; index < SHM_MSG_MAX; index++)
+        ptr->msgoff[index] = index * SHM_MSG_SIZE;
+
+    sem_init(&ptr->mutex, 1, 1);
+    sem_init(&ptr->nempty, 1, SHM_MSG_MAX);
+    sem_init(&ptr->nstored, 1, 0);
+    sem_init(&ptr->noverflowmutex, 1, 1);
+
+	// producer
+    char    mesg[SHM_MSG_SIZE];
+    long    offset;
+	int count = 0;
+    while(true) {
+		sleep(1);
+        snprintf(mesg, SHM_MSG_SIZE, "pid %ld: log %d \n", (long) getpid(), count++);
+
+        if (sem_trywait(&ptr->nempty) == -1) {
+            if (errno == EAGAIN) {
+                sem_wait(&ptr->noverflowmutex);
+                ptr->noverflow++;
+                sem_post(&ptr->noverflowmutex);
+                continue;
+            } else
+                cout << "sem_trywait error" << endl;
+				exit(1);
+        }
+
+        sem_wait(&ptr->mutex);
+        offset = ptr->msgoff[ptr->nput];
+        if (++(ptr->nput) >= SHM_MSG_MAX)
+            ptr->nput = 0;        // circular buffer
+        sem_post(&ptr->mutex);
+        
+        strcpy(&ptr->msgdata[offset], mesg);
+        sem_post(&ptr->nstored);
+    }
 
 	close(socket_fd);
 	return 0;
