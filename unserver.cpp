@@ -7,6 +7,7 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/resource.h>
+#include <sys/wait.h>
 
 #include "shm.h"
 #include "ipc.h"
@@ -14,9 +15,14 @@
 using namespace std;
 
 void sig_int(int signo);
+pid_t child_make(int i, int listen_fd);
 void handle_request(int accept_fd);
+void print_cpu_time();
 
-int 
+static constexpr int nchildren = 3;		// change this value based on the number of clients
+static pid_t* pids;
+
+int
 main()
 {
 	int ret = 0;
@@ -55,31 +61,18 @@ main()
 	}
     cout << "Waiting for new requests." << endl;
     
-	void sig_int(int);
-	// signal(SIGCHLD, sig_chld);		todo: handle child signal
-	signal(SIGINT, sig_int);
-
-	socklen_t			clilen;
-	struct sockaddr_un  cliaddr;
-	int childpid;
-	for ( ; ; ) {
-		clilen = sizeof(cliaddr);
-		if ( (accept_fd = accept(socket_fd, (sockaddr *)&cliaddr, &clilen)) < 0) {
-			if (errno == EINTR)
-				continue;
-			else
-				cout << "Accept failed" << endl;
-		}
-
-		if ( (childpid = fork()) == 0) {	// child process
-			close(socket_fd);
-			handle_request(accept_fd);
-			exit(0);
-		}
-		close(accept_fd);			// parent closes connected socket
+	pids = (pid_t *)calloc(nchildren, sizeof(pid_t));
+	for(int i = 0; i < nchildren; ++i)
+	{
+		pids[i] = child_make(i, socket_fd);
 	}
 
-	close(socket_fd);
+	void sig_int(int);
+	signal(SIGINT, sig_int);
+
+	for(;;)
+		pause();
+
 	return 0;
 }
 
@@ -87,19 +80,41 @@ void
 sig_int(int signo)
 {
 	(void) (signo);
-	constexpr double BASE = 1000000.0;
-    double user, sys;
-    struct rusage myusage, childusage;
-    if(getrusage(RUSAGE_SELF, &myusage) < 0) return;
-    if(getrusage(RUSAGE_CHILDREN, &childusage) < 0) return;
-
-    user = (double) myusage.ru_utime.tv_sec + myusage.ru_utime.tv_usec/ BASE;
-    user += (double) childusage.ru_utime.tv_sec + childusage.ru_utime.tv_usec / BASE;
-    sys = (double) myusage.ru_stime.tv_sec + myusage.ru_stime.tv_usec/ BASE;
-    sys += (double) childusage.ru_stime.tv_sec + childusage.ru_stime.tv_usec/ BASE;
-
-    std::cout << "user time = " << user << ", sys time = " << sys << std::endl;
+	for(int i = 0; i < nchildren; ++i)
+	{
+		kill(pids[i], SIGTERM);
+	}
+	while(wait(nullptr) > 0)	// wait for all children
+	;
+	print_cpu_time();
 	exit(0);
+}
+
+pid_t
+child_make(int i, int listen_fd)
+{
+	pid_t pid;
+
+	if((pid = fork()) > 0)
+		return pid;
+
+	int accept_fd;
+	socklen_t			clilen;
+	struct sockaddr_un  cliaddr;
+
+	cout << "child " << getpid() << " starting" <<endl;
+	for ( ; ; ) {
+		clilen = sizeof(cliaddr);
+		if ( (accept_fd = accept(listen_fd, (sockaddr *)&cliaddr, &clilen)) < 0) {
+			if (errno == EINTR)
+				continue;
+			else
+				cout << "Accept failed" << endl;
+		}
+
+		handle_request(accept_fd);
+		close(accept_fd);
+	}
 }
 
 void
@@ -153,4 +168,21 @@ handle_request(int accept_fd)
         }
     }
 	close(file_fd);
+}
+
+void
+print_cpu_time()
+{
+	constexpr double BASE = 1000000.0;
+    double user, sys;
+    struct rusage myusage, childusage;
+    if(getrusage(RUSAGE_SELF, &myusage) < 0) return;
+    if(getrusage(RUSAGE_CHILDREN, &childusage) < 0) return;
+
+    user = (double) myusage.ru_utime.tv_sec + myusage.ru_utime.tv_usec/ BASE;
+    user += (double) childusage.ru_utime.tv_sec + childusage.ru_utime.tv_usec / BASE;
+    sys = (double) myusage.ru_stime.tv_sec + myusage.ru_stime.tv_usec/ BASE;
+    sys += (double) childusage.ru_stime.tv_sec + childusage.ru_stime.tv_usec/ BASE;
+
+    std::cout << "user time = " << user << ", sys time = " << sys << std::endl;
 }
