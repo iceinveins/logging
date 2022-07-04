@@ -19,7 +19,7 @@ pid_t child_make(int i, int listen_fd);
 void handle_request(int accept_fd);
 void print_cpu_time();
 
-static constexpr int nchildren = 3;		// change this value based on the number of clients
+static constexpr int nchildren = 3;		// change this value based on the actual number of clients
 static pid_t* pids;
 
 int
@@ -46,7 +46,6 @@ main()
     // bind socket
     cout << "Binding socket..." << endl;
 	ret = bind(socket_fd,(sockaddr *)&server_addr,sizeof(server_addr));
-
 	if(0 > ret){
 		cout << "Bind socket failed." << endl;
 		return -1;
@@ -61,13 +60,14 @@ main()
 	}
     cout << "Waiting for new requests." << endl;
     
+	// pre-create children
 	pids = (pid_t *)calloc(nchildren, sizeof(pid_t));
 	for(int i = 0; i < nchildren; ++i)
 	{
 		pids[i] = child_make(i, socket_fd);
 	}
+	close(socket_fd);
 
-	void sig_int(int);
 	signal(SIGINT, sig_int);
 
 	for(;;)
@@ -102,7 +102,7 @@ child_make(int i, int listen_fd)
 	socklen_t			clilen;
 	struct sockaddr_un  cliaddr;
 
-	cout << "child " << getpid() << " starting" <<endl;
+	cout << "child " << getpid() << " started" <<endl;
 	for ( ; ; ) {
 		clilen = sizeof(cliaddr);
 		if ( (accept_fd = accept(listen_fd, (sockaddr *)&cliaddr, &clilen)) < 0) {
@@ -113,61 +113,45 @@ child_make(int i, int listen_fd)
 		}
 
 		handle_request(accept_fd);
-		close(accept_fd);
+		close(accept_fd);		// actually handled by kernel
 	}
 }
 
 void
 handle_request(int accept_fd)
 {
-	cout<< "child " << getpid() << " and it's parent " << getppid() <<endl;
+	cout<< "\nchild " << getpid() << "  start handling the request " <<endl;
 	char msg[SOCKET_MSG_SIZE];
 
 	// receive msg
 	bzero(msg, SOCKET_MSG_SIZE);
 	recv(accept_fd, msg, SOCKET_MSG_SIZE, 0);
 	msg[strlen(msg) - 1] = '\0';
-	cout << "log path: " << msg <<endl;
-	// unlink(msg);
+	cout << "saving log to path: " << msg << " ..." << endl;
+
 	int file_fd = open(msg, O_APPEND | O_CREAT | O_WRONLY , S_IRWXU | S_IRWXG);
-	// todo error handling file_fd = -1		one file is not enough
+	// todo error handling file_fd = -1		and if one file is not enough
 
 	bzero(msg, SOCKET_MSG_SIZE);
 	recv(accept_fd, msg, SOCKET_MSG_SIZE, 0);
-	cout << "shm_name: " << msg <<endl;
+	// cout << "shm_name: " << msg <<endl;
 
 	// open and map shared memory that client has created
-	struct shmstruct    *ptr;		
     int shm_fd = shm_open(msg, O_RDWR, FILE_MODE);
-    ptr = (shmstruct *)mmap(NULL, sizeof(struct shmstruct), PROT_READ | PROT_WRITE,
+    ring_queue_t *rq = (ring_queue_t *)mmap(NULL, sizeof(ring_queue_t), PROT_READ | PROT_WRITE,
                MAP_SHARED, shm_fd, 0);
     close(shm_fd);
 
     // consumer
-    int index = 0;
-    int lastnoverflow = 0;
-	long offset, temp;
-    for ( ; ; ) {
-        sleep(1);
-        sem_wait(&ptr->nstored);
-        sem_wait(&ptr->mutex);
-        offset = ptr->msgoff[index];
-        printf("index = %d: %s\n", index, &ptr->msgdata[offset]);
-		write(file_fd, &ptr->msgdata[offset], strlen(&ptr->msgdata[offset]));
-        if (++index >= SHM_MSG_MAX)
-            index = 0;                // circular buffer
-        sem_post(&ptr->mutex);
-        sem_post(&ptr->nempty);
-
-        sem_wait(&ptr->noverflowmutex);
-        temp = ptr->noverflow;        // don't printf while mutex held
-        sem_post(&ptr->noverflowmutex);
-        if (temp != lastnoverflow) {
-            printf("noverflow = %ld\n", temp);
-            lastnoverflow = temp;
-        }
+	char log[RING_QUEUE_ITEM_SIZE];
+    while(1) {
+		if(-1 != ring_queue_pop(rq, log))
+		{
+			printf("%s", log);
+			write(file_fd, log, strlen(log));
+		}
     }
-	close(file_fd);
+	close(file_fd);			// actually handled by kernel
 }
 
 void
