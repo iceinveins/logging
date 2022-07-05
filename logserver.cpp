@@ -68,6 +68,7 @@ main()
 	}
 	close(socket_fd);
 
+	// register signal SIGINT to gracefully close all the sub-process
 	signal(SIGINT, sig_int);
 
 	for(;;)
@@ -128,26 +129,35 @@ child_make(int i, int listen_fd)
 void
 handle_request(int accept_fd)
 {
-	cout<< "\nchild " << getpid() << "  start handling the request " <<endl;
+	cout<< "\nchild " << getpid() << " start handling the request " <<endl;
 	char msg[SOCKET_MSG_SIZE];
 
-	// receive msg
+	// receive msg1, open file
 	bzero(msg, SOCKET_MSG_SIZE);
 	recv(accept_fd, msg, SOCKET_MSG_SIZE, 0);
 	msg[strlen(msg) - 1] = '\0';
-	cout << "saving log to path: " << msg << " ..." << endl;
-
 	int file_fd = open(msg, O_APPEND | O_CREAT | O_WRONLY , S_IRWXU | S_IRWXG);
-	// todo error handling file_fd = -1		and if one file is not enough
-
+	if(-1 == file_fd)
+	{
+		cout << "open file failed!" << endl;
+		return;
+	}
+	cout << "saving log to path: " << msg << " ..." << endl;
+	
+	// receive msg2, open and map shared memory that client has created
 	bzero(msg, SOCKET_MSG_SIZE);
 	recv(accept_fd, msg, SOCKET_MSG_SIZE, 0);
 	// cout << "shm_name: " << msg <<endl;
-
-	// open and map shared memory that client has created
     int shm_fd = shm_open(msg, O_RDWR, FILE_MODE);
+	if(-1 == shm_fd)
+	{
+		cout << "shm_open failed!" << endl;
+		return;
+	}
     ring_queue_t *rq = (ring_queue_t *)mmap(NULL, sizeof(ring_queue_t), PROT_READ | PROT_WRITE,
                MAP_SHARED, shm_fd, 0);
+
+	// close unnecessary file descriptions		   
     close(shm_fd);
 
     // consumer
@@ -155,10 +165,11 @@ handle_request(int accept_fd)
     while(1) {
 		if(-1 != ring_queue_pop(rq, log))
 		{
-			printf("%s", log);
+			// printf("%s", log);
 			write(file_fd, log, strlen(log));
 		}
     }
+
 	close(file_fd);			// actually handled by kernel
 }
 

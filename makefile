@@ -1,6 +1,6 @@
 IDIR= ./include
 CC= g++
-CFLAGS= -I$(IDIR) -Wall -Wextra -pthread -march=nocona -mtune=generic
+CFLAGS= -I$(IDIR) -Wall -Wextra
 
 ODIR= ./obj
 
@@ -15,14 +15,12 @@ OBJ= $(patsubst %,$(ODIR)/%, $(_OBJ))
 $(ODIR)/%.o: %.cpp
 	$(CC) -c -o $@ $< $(CFLAGS) $(LIBS)
 
-all: logserver.elf logclient.elf testserver.elf
+all: logserver.elf logclient.elf
+
 logserver.elf: $(OBJ) $(ODIR)/logserver.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
 
 logclient.elf: $(OBJ) $(ODIR)/logclient.o
-	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
-
-testserver.elf: $(OBJ) $(ODIR)/testserver.o
 	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
 
 

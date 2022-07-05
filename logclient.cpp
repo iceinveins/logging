@@ -14,13 +14,23 @@
 
 using namespace std;
 
+int pathValidation(const char* path);
+
 int 
 main()
 {
-	int 	ret = 0;	// todo handle ret
+	int 	ret = 0;
+
 	char 	socket_msg[SOCKET_MSG_SIZE];
 	bzero(socket_msg, SOCKET_MSG_SIZE);
 	struct 	sockaddr_un server_addr;
+
+	cout << "Input file path>>> ";
+	fgets(socket_msg, SOCKET_MSG_SIZE, stdin);
+	if(-1 != pathValidation(socket_msg))
+	{
+		return -1;
+	}
 
     // create socket
 	int socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
@@ -41,9 +51,6 @@ main()
 		return -1;
 	}
 
-	cout << "Input file path>>> ";
-	fgets(socket_msg, SOCKET_MSG_SIZE, stdin);			// todo path validation
-
 	// send file path
 	ret = send(socket_fd, socket_msg,  SOCKET_MSG_SIZE, 0);
 	if(-1 == ret){
@@ -51,21 +58,25 @@ main()
 		return -1;
 	}
 
-    // create and map shared memory
+    // create and map shared memory, send shm_name to peer
 	string shm_name = "shm" + to_string(getpid());
 	shm_unlink(shm_name.c_str());        // OK if this fails
     int shm_fd = shm_open(shm_name.c_str(), O_RDWR | O_CREAT | O_EXCL, FILE_MODE);
-
-
+	if(-1 == shm_fd){
+		cout << "shm_open fail!" << endl;
+		return -1;
+	}
 	ftruncate(shm_fd, sizeof(ring_queue_t));
     ring_queue_t *rq = (ring_queue_t *)mmap(NULL, sizeof(ring_queue_t), PROT_READ | PROT_WRITE,
                MAP_SHARED, shm_fd, 0);
-	close(shm_fd);
 	ret = send(socket_fd, shm_name.c_str(), shm_name.size(), 0);	
 	if(-1 == ret){
 		cout << "send failed" << endl;
 		return -1;
 	}
+
+	// close unnecessary file descriptions
+	close(shm_fd);
 
 	// producer
 	cout << "log generating..." <<endl;
@@ -83,4 +94,28 @@ main()
 
 	close(socket_fd);	// actually handled by kernel
 	return 0;
+}
+
+int pathValidation(const char* path)
+{
+	int ret = access(path, F_OK);
+	if(-1 == ret)
+	{
+        int n = strlen(path)-1;
+        while(n>0 && path[n] != '/') n--;
+        if(n)
+        {
+            char dir[n+1];
+            memcpy(dir, path, n);
+            dir[n] = '\0';
+            struct stat buffer;
+            ret = stat(dir, &buffer);
+			if(-1 == ret)
+			{
+				cout << "directory not exists!" << endl;
+			}
+        }
+	}
+
+	return ret;
 }
