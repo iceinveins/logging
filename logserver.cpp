@@ -26,7 +26,7 @@ int
 main()
 {
 	int ret = 0;
-    int socket_fd, accept_fd;
+    int socket_fd;
 	struct sockaddr_un server_addr;
 
     // create socket
@@ -102,7 +102,15 @@ child_make(int i, int listen_fd)
 	socklen_t			clilen;
 	struct sockaddr_un  cliaddr;
 
-	cout << "child " << getpid() << " started" <<endl;
+	// set cpu affinity
+	const int NPROCESSORS = sysconf( _SC_NPROCESSORS_ONLN );
+    cpu_set_t set;
+    CPU_ZERO(&set);
+	int processor_index = NPROCESSORS - (i%NPROCESSORS);
+    CPU_SET(processor_index, &set);
+    sched_setaffinity(getpid(), sizeof(set), &set);
+
+	cout << "child " << getpid() << " started on processor " << processor_index << endl;
 	for ( ; ; ) {
 		clilen = sizeof(cliaddr);
 		if ( (accept_fd = accept(listen_fd, (sockaddr *)&cliaddr, &clilen)) < 0) {

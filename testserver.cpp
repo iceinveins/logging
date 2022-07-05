@@ -15,30 +15,24 @@
 #include <iostream>
 #include <signal.h>
 #include <sys/wait.h>
+
 #include "shm.h"
 using namespace std;
 
 int
 main()
 {
-    ring_queue_t rq;
-    memset(&rq, 0, sizeof(ring_queue_t));
-
-
-    char str[] = "xiaocong";
-    cout <<"push:" << endl;
-    ring_queue_push(&rq, str);
-    ring_queue_push(&rq, str);
-
-    while(!ring_queue_is_empty(&rq))
+    int num_cpus = sysconf( _SC_NPROCESSORS_ONLN );
+    cout<< num_cpus<<endl;
+    cpu_set_t set;
+    CPU_ZERO(&set);
+    CPU_SET(3, &set);
+    sched_setaffinity(getpid(), sizeof(set), &set);
+    cout << "pid "  << getpid() <<endl;
+    while (1)
     {
-        char result[256];
-        ring_queue_pop(&rq, result);
-
-        string res = result;
-        cout <<"pop:" << res << endl;
 
     }
-
+    
     return 0;
 }

@@ -1,21 +1,32 @@
-CC=g++
-CFLAGS=-I. -Wall -Wextra -lrt -pthread -march=nocona -mtune=generic
+IDIR= ./include
+CC= g++
+CFLAGS= -I$(IDIR) -Wall -Wextra -pthread -march=nocona -mtune=generic
 
-%.o: %.c
-	$(CC) -c -o $@ $< $(CFLAGS)
+ODIR= ./obj
 
-all: logserver logclient testserver
-logserver: logserver.o shm.o
-	$(CC) -o $@ $^ $(CFLAGS)
+LIBS=-lrt
 
-logclient: logclient.o shm.o
-	$(CC) -o $@ $^ $(CFLAGS)
+_DEPS= ipc.h shm.h
+DEPS= $(patsubst %,$(IDIR)/%, $(_DEPS))
 
-testserver: testserver.o shm.o
-	$(CC) -o $@ $^ $(CFLAGS)
+_OBJ= shm.o
+OBJ= $(patsubst %,$(ODIR)/%, $(_OBJ))
+
+$(ODIR)/%.o: %.cpp
+	$(CC) -c -o $@ $< $(CFLAGS) $(LIBS)
+
+all: logserver.elf logclient.elf testserver.elf
+logserver.elf: $(OBJ) $(ODIR)/logserver.o
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
+
+logclient.elf: $(OBJ) $(ODIR)/logclient.o
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
+
+testserver.elf: $(OBJ) $(ODIR)/testserver.o
+	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
 
 
 .PHONY: clean
 
 clean:
-	rm -f *.o *~ core *.log
+	rm -f $(ODIR)/*.o *~ core *.elf *.sock ./domainsocket
