@@ -29,4 +29,4 @@ testserver.elf: $(OBJ) $(ODIR)/testserver.o
 .PHONY: clean
 
 clean:
-	rm -f $(ODIR)/*.o *~ core *.elf *.sock ./domainsocket
+	rm -f $(ODIR)/*.o *~ core *.elf *.sock ./domainsocket *.log

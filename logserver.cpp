@@ -106,7 +106,7 @@ child_make(int i, int listen_fd)
 	const int NPROCESSORS = sysconf( _SC_NPROCESSORS_ONLN );
     cpu_set_t set;
     CPU_ZERO(&set);
-	int processor_index = NPROCESSORS - (i%NPROCESSORS);
+	int processor_index = i%NPROCESSORS;
     CPU_SET(processor_index, &set);
     sched_setaffinity(getpid(), sizeof(set), &set);
 
