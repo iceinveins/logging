@@ -47,7 +47,7 @@ main()
     cout << "Binding socket..." << endl;
 	ret = bind(socket_fd,(sockaddr *)&server_addr,sizeof(server_addr));
 	if(0 > ret){
-		cout << "Bind socket failed." << endl;
+		cout << "Bind socket failed!" << endl;
 		return -1;
 	}
 	
@@ -55,10 +55,10 @@ main()
     cout << "Listening socket..." << endl;
 	ret = listen(socket_fd, 10);
 	if(-1 == ret){
-		cout << "Listen failed" << endl;
+		cout << "Listen failed!" << endl;
 		return -1;
 	}
-    cout << "Waiting for new requests." << endl;
+    cout << "Waiting for new requests!" << endl;
     
 	// pre-create children
 	pids = (pid_t *)calloc(nchildren, sizeof(pid_t));
@@ -134,24 +134,35 @@ handle_request(int accept_fd)
 
 	// receive msg1, open file
 	bzero(msg, SOCKET_MSG_SIZE);
-	recv(accept_fd, msg, SOCKET_MSG_SIZE, 0);
+	if(-1 == recv(accept_fd, msg, SOCKET_MSG_SIZE, 0))
+	{
+		cout << "recv msg1 failed! errno= " << errno << endl;
+		return;
+	}
 	msg[strlen(msg) - 1] = '\0';
 	int file_fd = open(msg, O_APPEND | O_CREAT | O_WRONLY , S_IRWXU | S_IRWXG);
 	if(-1 == file_fd)
 	{
-		cout << "open file failed!" << endl;
+		cout << "open file failed! errno=" << errno << endl;
 		return;
 	}
-	cout << "saving log to path: " << msg << " ..." << endl;
+	cout << "saving log to path: " << msg << endl;
 	
 	// receive msg2, open and map shared memory that client has created
 	bzero(msg, SOCKET_MSG_SIZE);
-	recv(accept_fd, msg, SOCKET_MSG_SIZE, 0);
-	// cout << "shm_name: " << msg <<endl;
+	if(-1 == recv(accept_fd, msg, SOCKET_MSG_SIZE, 0))
+	{
+		cout << "recv msg2 failed! errno= " << errno << endl;
+		close(file_fd);
+		return;
+	}
+	msg[strlen(msg)] = '\0';
+	// cout << "shm_name: " << msg << " strlen=" << strlen(msg) <<endl;
     int shm_fd = shm_open(msg, O_RDWR, FILE_MODE);
 	if(-1 == shm_fd)
 	{
-		cout << "shm_open failed!" << endl;
+		cout << "shm_open failed! errno= "  << errno << endl;
+		close(file_fd);
 		return;
 	}
     ring_queue_t *rq = (ring_queue_t *)mmap(NULL, sizeof(ring_queue_t), PROT_READ | PROT_WRITE,
@@ -162,7 +173,7 @@ handle_request(int accept_fd)
 
     // consumer
 	char log[RING_QUEUE_ITEM_SIZE];
-    while(1) {
+    while(true) {
 		if(-1 != ring_queue_pop(rq, log))
 		{
 			// printf("%s", log);
@@ -170,7 +181,7 @@ handle_request(int accept_fd)
 		}
     }
 
-	close(file_fd);			// actually handled by kernel
+	close(file_fd);
 }
 
 void

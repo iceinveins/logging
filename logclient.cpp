@@ -25,17 +25,10 @@ main()
 	bzero(socket_msg, SOCKET_MSG_SIZE);
 	struct 	sockaddr_un server_addr;
 
-	cout << "Input file path>>> ";
-	fgets(socket_msg, SOCKET_MSG_SIZE, stdin);
-	if(-1 != pathValidation(socket_msg))
-	{
-		return -1;
-	}
-
     // create socket
 	int socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
 	if(-1 == socket_fd){
-		cout << "Socket create failed!" << endl;
+		cout << "Socket create failed! errno= " << errno << endl;
 		return -1;
 	}
     
@@ -47,14 +40,22 @@ main()
     // connect socket
 	ret = connect(socket_fd, (sockaddr *)&server_addr, sizeof(server_addr));
 	if(-1 == ret){
-		cout << "Connect socket failed" << endl;
+		cout << "Connect socket failed! errno= " << errno << endl;
 		return -1;
 	}
 
 	// send file path
+	cout << "Input file path>>> ";
+	fgets(socket_msg, SOCKET_MSG_SIZE, stdin);
+	if(-1 != pathValidation(socket_msg))
+	{
+		close(socket_fd);
+		return -1;
+	}
 	ret = send(socket_fd, socket_msg,  SOCKET_MSG_SIZE, 0);
 	if(-1 == ret){
-		cout << "send failed" << endl;
+		cout << "send failed! errno= " << errno << endl;
+		close(socket_fd);
 		return -1;
 	}
 
@@ -63,15 +64,18 @@ main()
 	shm_unlink(shm_name.c_str());        // OK if this fails
     int shm_fd = shm_open(shm_name.c_str(), O_RDWR | O_CREAT | O_EXCL, FILE_MODE);
 	if(-1 == shm_fd){
-		cout << "shm_open fail!" << endl;
+		cout << "shm_open failed ! errno= " << errno << endl;
+		close(socket_fd);
 		return -1;
 	}
 	ftruncate(shm_fd, sizeof(ring_queue_t));
     ring_queue_t *rq = (ring_queue_t *)mmap(NULL, sizeof(ring_queue_t), PROT_READ | PROT_WRITE,
                MAP_SHARED, shm_fd, 0);
-	ret = send(socket_fd, shm_name.c_str(), shm_name.size(), 0);	
+	ret = send(socket_fd, shm_name.c_str(), SOCKET_MSG_SIZE, 0);	
 	if(-1 == ret){
-		cout << "send failed" << endl;
+		cout << "send failed! errno= " << errno << endl;
+		close(socket_fd);
+		close(shm_fd);
 		return -1;
 	}
 
@@ -84,15 +88,34 @@ main()
 	char tm[128] = {0};
 	time_t t = time(0);
 	int  count = 0;
+	int retry_times = 0;
     while(true) {
 		sleep(1);
 		strftime(tm, 64, "%Y-%m-%d %H:%M:%S", localtime(&t));
         snprintf(log, RING_QUEUE_ITEM_SIZE, "%s  pid[%ld]: log %d \n", tm, (long) getpid(), count++);
-		printf("%s", log);
-        ring_queue_push(rq, log);
+        if(-1 != ring_queue_push(rq, log))
+		{
+			printf("%s", log);
+		}
+		else
+		{
+			sleep(1);
+			retry_times++;
+			if(RING_QUEUE_RETRY_TIMES == retry_times)	
+			{
+				retry_times = 0;
+				// check socket connection
+				ret = connect(socket_fd, (sockaddr *)&server_addr, sizeof(server_addr));
+				if(-1 == ret && 106 != errno)	// 106 means already connected
+				{
+					cout << "peer disconnected!" << endl;
+					break;
+				}
+			}
+		}
     }
 
-	close(socket_fd);	// actually handled by kernel
+	close(socket_fd);
 	return 0;
 }
 

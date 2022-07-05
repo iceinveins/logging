@@ -3,4 +3,4 @@
 #include <netinet/in.h>
 
 #define SOCKET_PATH "./domainsocket"
-#define SOCKET_MSG_SIZE 2048
+#define SOCKET_MSG_SIZE 50
