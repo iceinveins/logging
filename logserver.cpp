@@ -6,18 +6,18 @@
 #include <iostream>
 #include <string.h>
 #include <signal.h>
-#include <sys/resource.h>
 #include <sys/wait.h>
 
 #include "shm.h"
 #include "ipc.h"
+#include "util.h"
 
 using namespace std;
 
 void sig_int(int signo);
+void sig_pipe(int signo);
 pid_t child_make(int i, int listen_fd);
 void handle_request(int accept_fd);
-void print_cpu_time();
 
 static constexpr int nchildren = 3;		// change this value based on the actual number of clients
 static pid_t* pids;
@@ -91,6 +91,12 @@ sig_int(int signo)
 	exit(0);
 }
 
+void 
+sig_pipe(int signo)
+{
+	(void) (signo);
+}
+
 pid_t
 child_make(int i, int listen_fd)
 {
@@ -118,11 +124,11 @@ child_make(int i, int listen_fd)
 			if (errno == EINTR)
 				continue;
 			else
-				cout << "Accept failed" << endl;
+				cout << "accept failed!" << endl;
 		}
 
 		handle_request(accept_fd);
-		close(accept_fd);		// actually handled by kernel
+		close(accept_fd);
 	}
 }
 
@@ -170,33 +176,35 @@ handle_request(int accept_fd)
 
 	// close unnecessary file descriptions		   
     close(shm_fd);
+	
+	signal(SIGPIPE, sig_pipe);
 
     // consumer
 	char log[RING_QUEUE_ITEM_SIZE];
+	int retry_times = 0;
     while(true) {
 		if(-1 != ring_queue_pop(rq, log))
 		{
 			// printf("%s", log);
 			write(file_fd, log, strlen(log));
 		}
+		else
+		{
+			sleep(RING_QUEUE_RETRY_INTERVAL);
+			retry_times++;
+			if(RING_QUEUE_RETRY_TIMES == retry_times)	
+			{
+				retry_times = 0;
+				// check socket connection
+				int ret = send(accept_fd, nullptr, 0, 0);
+				if(-1 == ret && errno == EPIPE)
+				{
+					cout << "peer disconnected! errno= " << errno << endl;
+					break;
+				}
+			}
+		}
     }
 
 	close(file_fd);
-}
-
-void
-print_cpu_time()
-{
-	constexpr double BASE = 1000000.0;
-    double user, sys;
-    struct rusage myusage, childusage;
-    if(getrusage(RUSAGE_SELF, &myusage) < 0) return;
-    if(getrusage(RUSAGE_CHILDREN, &childusage) < 0) return;
-
-    user = (double) myusage.ru_utime.tv_sec + myusage.ru_utime.tv_usec/ BASE;
-    user += (double) childusage.ru_utime.tv_sec + childusage.ru_utime.tv_usec / BASE;
-    sys = (double) myusage.ru_stime.tv_sec + myusage.ru_stime.tv_usec/ BASE;
-    sys += (double) childusage.ru_stime.tv_sec + childusage.ru_stime.tv_usec/ BASE;
-
-    std::cout << "user time = " << user << ", sys time = " << sys << std::endl;
 }

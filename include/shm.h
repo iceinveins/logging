@@ -9,9 +9,10 @@
 #define	FILE_MODE	(S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)     // default permissions for new files
 #define	DIR_MODE	(FILE_MODE | S_IXUSR | S_IXGRP | S_IXOTH)   // default permissions for new directories
 
-#define RING_QUEUE_ITEM_SIZE    256     // max bytes per message
-#define RING_QUEUE_CAPACITY     5       // max number of messages
-#define RING_QUEUE_RETRY_TIMES  5       // max times for retry
+#define RING_QUEUE_ITEM_SIZE        256     // max bytes per message
+#define RING_QUEUE_CAPACITY         5       // max number of messages
+#define RING_QUEUE_RETRY_INTERVAL   1       // time interval for each retry
+#define RING_QUEUE_RETRY_TIMES      5       // max times for retry
 
 struct ring_queue_t {
     char pbuf[RING_QUEUE_ITEM_SIZE*RING_QUEUE_CAPACITY];

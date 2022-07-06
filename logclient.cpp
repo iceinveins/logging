@@ -11,9 +11,14 @@
 
 #include "shm.h"
 #include "ipc.h"
+#include "util.h"
+
+#define LOG_GENERATING_INTERVAL 1	// second
 
 using namespace std;
 
+void sig_int(int signo);
+void sig_pipe(int signo);
 int pathValidation(const char* path);
 
 int 
@@ -82,15 +87,18 @@ main()
 	// close unnecessary file descriptions
 	close(shm_fd);
 
+	signal(SIGINT, sig_int);
+	signal(SIGPIPE, sig_pipe);
+
 	// producer
 	cout << "log generating..." <<endl;
     char log[RING_QUEUE_ITEM_SIZE];
 	char tm[128] = {0};
 	time_t t = time(0);
-	int  count = 0;
+	int count = 0;
 	int retry_times = 0;
     while(true) {
-		sleep(1);
+		sleep(LOG_GENERATING_INTERVAL);
 		strftime(tm, 64, "%Y-%m-%d %H:%M:%S", localtime(&t));
         snprintf(log, RING_QUEUE_ITEM_SIZE, "%s  pid[%ld]: log %d \n", tm, (long) getpid(), count++);
         if(-1 != ring_queue_push(rq, log))
@@ -99,16 +107,16 @@ main()
 		}
 		else
 		{
-			sleep(1);
+			sleep(RING_QUEUE_RETRY_INTERVAL);
 			retry_times++;
 			if(RING_QUEUE_RETRY_TIMES == retry_times)	
 			{
 				retry_times = 0;
 				// check socket connection
-				ret = connect(socket_fd, (sockaddr *)&server_addr, sizeof(server_addr));
-				if(-1 == ret && 106 != errno)	// 106 means already connected
+				int ret = send(socket_fd, nullptr, 0, 0);
+				if(-1 == ret && errno == EPIPE)
 				{
-					cout << "peer disconnected!" << endl;
+					cout << "peer disconnected! errno= " << errno << endl;
 					break;
 				}
 			}
@@ -116,7 +124,22 @@ main()
     }
 
 	close(socket_fd);
+	print_cpu_time();
 	return 0;
+}
+
+void 
+sig_int(int signo)
+{
+	(void) (signo);
+	print_cpu_time();
+	exit(0);
+}
+
+void 
+sig_pipe(int signo)
+{
+	(void) (signo);
 }
 
 int pathValidation(const char* path)

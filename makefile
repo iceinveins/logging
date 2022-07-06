@@ -6,10 +6,10 @@ ODIR= ./obj
 
 LIBS=-lrt
 
-_DEPS= ipc.h shm.h
+_DEPS= ipc.h shm.h util.h
 DEPS= $(patsubst %,$(IDIR)/%, $(_DEPS))
 
-_OBJ= shm.o
+_OBJ= shm.o util.o
 OBJ= $(patsubst %,$(ODIR)/%, $(_OBJ))
 
 $(ODIR)/%.o: %.cpp
