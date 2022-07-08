@@ -1,10 +1,12 @@
-#include "shm.h"
-#include <stdlib.h>
-#include <string.h>
+#include "../include/shm.h"
+#include <cstring>
 
 #define CAS(ptr, old, new) __sync_bool_compare_and_swap(ptr, old, new)
-
-int ring_queue_push(ring_queue_t* pqueue, void* pitem) {
+namespace Logging
+{
+int 
+ring_queue_push(ring_queue_t* pqueue, void* pitem) 
+{
     // try to set write flag
     while (1) {
         if (ring_queue_is_full(pqueue)) {
@@ -29,7 +31,9 @@ int ring_queue_push(ring_queue_t* pqueue, void* pitem) {
     return 0;
 }
 
-int ring_queue_pop(ring_queue_t* pqueue, void* pitem) {
+int 
+ring_queue_pop(ring_queue_t* pqueue, void* pitem) 
+{
     // try to set read flag
     while (1) {
         if (ring_queue_is_empty(pqueue)) {
@@ -54,10 +58,15 @@ int ring_queue_pop(ring_queue_t* pqueue, void* pitem) {
     return 0;
 }
 
-int ring_queue_is_empty(ring_queue_t* pqueue) {
+int 
+ring_queue_is_empty(ring_queue_t* pqueue) 
+{
     return (pqueue->head == pqueue->tail) && !pqueue->diff_cycle;
 }
 
-int ring_queue_is_full(ring_queue_t* pqueue) {
+int 
+ring_queue_is_full(ring_queue_t* pqueue) 
+{
     return (pqueue->head == pqueue->tail) && pqueue->diff_cycle;
+}
 }

@@ -13,6 +13,7 @@
 #include "util.h"
 
 using namespace std;
+using namespace Logging;
 
 void sig_int(int signo);
 void sig_pipe(int signo);
@@ -145,7 +146,7 @@ handle_request(int accept_fd)
 		cout << "recv msg1 failed! errno= " << errno << endl;
 		return;
 	}
-	msg[strlen(msg) - 1] = '\0';
+	msg[strlen(msg)] = '\0';
 	int file_fd = open(msg, O_APPEND | O_CREAT | O_WRONLY , S_IRWXU | S_IRWXG);
 	if(-1 == file_fd)
 	{

@@ -1,1 +1,0 @@
-void print_cpu_time();

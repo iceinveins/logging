@@ -1,0 +1,1 @@
+add_library(logInterface src/shm.cpp src/util.cpp)

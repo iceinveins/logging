@@ -1,7 +1,9 @@
-#include "util.h"
+#include "../include/util.h"
 #include <sys/resource.h>
 #include <iostream>
 
+namespace Logging
+{
 void
 print_cpu_time()
 {
@@ -17,4 +19,5 @@ print_cpu_time()
     sys += (double) childusage.ru_stime.tv_sec + childusage.ru_stime.tv_usec/ BASE;
 
     std::cout << "\nuser time = " << user << ", sys time = " << sys << std::endl;
+}
 }
