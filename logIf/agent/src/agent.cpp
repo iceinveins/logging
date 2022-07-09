@@ -93,7 +93,11 @@ Agent::reset()
     {
         close(socket_fd);
     }
-    rq = nullptr;
+    if(rq)
+    {
+        munmap(rq, sizeof(ring_queue_t));
+        rq = nullptr;
+    }
     logPath.clear();
 }
 
@@ -105,7 +109,7 @@ Agent::setLogPath(const string& path)
         cout << __FUNCTION__ << "failed! Agent is running, need to reset & start again" <<endl;
         return false;
     }
-    
+
     if(!pathValidation(path))
     {
         cout << __FUNCTION__ << "failed! path invalid" <<endl;

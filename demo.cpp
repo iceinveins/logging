@@ -20,6 +20,7 @@ main()
 	Logging::Agent agent;
 	// this is just a demo, so I won't check it's return value
 	agent.setLogPath("demo.log");
+	agent.setLogLevel(Level::DEBUG);
 	agent.start();
 
 	signal(SIGINT, sig_int);
