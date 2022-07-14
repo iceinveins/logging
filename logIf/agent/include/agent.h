@@ -3,7 +3,10 @@
 #include "../../interface/include/shm.h"
 #include "../../interface/include/ipc.h"
 #include "../../interface/include/util.h"
+#include "../../interface/include/interfaceMsg.h"
+#include <unistd.h>
 #include <string>
+#include <memory>
 namespace Logging
 {
 enum class Level{ERROR, WARNING, NOTICE, DEBUG};
@@ -14,15 +17,17 @@ public:
     Agent();
     ~Agent();
     int  start();
-    void reset();
-    bool setLogPath(const std::string& path);   // default = pid.log
+    bool setLogPath(const std::string& path = std::to_string(getpid()) + ".log");       // default = <pid>.log
+    bool setShmName(const std::string& name = std::to_string(getpid()) + ".shm");       // default = <pid>.shm
     void setLogLevel(Level lv);                 // only those <= LEVEL will be write, others will be droped
     bool write(Level lv, const std::string& log);
 private:
     bool pathValidation(const std::string& path);
+    bool sendIpcMsg(std::shared_ptr<InterfaceMsg> msg);
 
     Level           level;
     std::string     logPath;
+    std::string     shm_name;
     int             socket_fd;
     ring_queue_t*   rq;
 };

@@ -11,13 +11,12 @@ and all you need is to include the head files in logIf, link their static librar
 
 ***
 ## config(optional)
-1. change the variable 'nchildren' in logserver.cpp to the expected number of clients. (default = 3)
-2. change the SOCKET_MSG_SIZE in ipc.h based on the max length of logpath. (default = 50)
-3. change the RING_QUEUE_ITEM_SIZE in shm.h based on the max length of log. (default = 256)
-4. change the RING_QUEUE_CAPACITY in shm.h according to the situation. (default = 5)
-5. change the RING_QUEUE_RETRY_INTERVAL in shm.h according to the situation. (default = 1)
-6. change the RING_QUEUE_RETRY_TIMES in shm.h according to the situation. (default = 5)
-7. change the algorithm of sched_setaffinity in logserver.cpp to avoid the key processes, the ideal situation is that each
+1. change the variable 'USER_LIMIT' in logserver.cpp to the expected max connections of clients. (default = 3)
+2. change the variable 'MAX_EVENT' in logserver.cpp to the expected max number of epoll events. (default = 10)
+3. change the SOCKET_MSG_SIZE in ipc.h based on the max length of logpath. (default = 50)
+4. change the RING_QUEUE_ITEM_SIZE in shm.h based on the max length of log. (default = 256)
+5. change the RING_QUEUE_CAPACITY in shm.h according to the situation. (default = 5)
+6. change the algorithm of sched_setaffinity in logserver.cpp to avoid the key processes, the ideal situation is that each
 process owns one processer. (default = child_index % NPROCESSORS)
 
 ## build
@@ -51,11 +50,12 @@ make clean
 ***
 ## features
 low-latency
-1. pre-created sub processes
-2. sched_setaffinity
-3. lockless ring buffer
+1. sched_setaffinity
+2. lockless ring buffer
 
 others
 1. domain socket
 2. shared memory
 3. cmake
+4. epoll
+5. 

@@ -12,18 +12,16 @@ namespace Logging
 {  
 constexpr int RING_QUEUE_ITEM_SIZE      = 256;     // max bytes per message
 constexpr int RING_QUEUE_CAPACITY       = 5;       // max number of messages
-constexpr int RING_QUEUE_RETRY_INTERVAL = 1;       // time interval for each retry
-constexpr int RING_QUEUE_RETRY_TIMES    = 5;       // max times for retry
 
 struct ring_queue_t {
-    char pbuf[RING_QUEUE_ITEM_SIZE*RING_QUEUE_CAPACITY];
-
     volatile int write_flag;
     volatile int read_flag;
 
     volatile int head;
     volatile int tail;
     volatile int diff_cycle;
+
+    char pbuf[RING_QUEUE_ITEM_SIZE*RING_QUEUE_CAPACITY];
 };
 
 int ring_queue_push(ring_queue_t* pqueue, void* pitem);

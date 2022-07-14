@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <sys/types.h>
+#include <sys/epoll.h>
 #include <strings.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -7,34 +8,158 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <unordered_map>
+#include <memory>
 
 #include "shm.h"
 #include "ipc.h"
 #include "util.h"
+#include "client.h"
 
 using namespace std;
 using namespace Logging;
 
 void sig_int(int signo);
-void sig_pipe(int signo);
-pid_t child_make(int i, int listen_fd);
+void setCpuAffinity(int index);
+void listenSocket(int& listen_fd);
+void epoll_addfd(int epollfd, int fd);
+void epoll_removefd(int epollfd, int fd);
+void setNonBlocking(int sock);
 void handle_request(int accept_fd);
 
-static constexpr int nchildren = 3;		// change this value based on the actual number of clients
-static pid_t* pids;
+constexpr int MAX_EVENTS = 10;
+constexpr int USER_LIMIT = 3;
 
 int
 main()
 {
-	int ret = 0;
-    int socket_fd;
+	setCpuAffinity(0);
+
+    int listen_fd;
+	listenSocket(listen_fd);
+
+	struct epoll_event events[MAX_EVENTS];
+	int nfds, epollfd;
+	epollfd = epoll_create1(0);
+	if(-1 == epollfd)
+	{
+		cout  << __FUNCTION__ << "epoll_create1 failed!" << endl;
+		exit(EXIT_FAILURE);
+	}
+	epoll_addfd(epollfd, listen_fd);
+
+	// register signal SIGINT
+	signal(SIGINT, sig_int);
+	signal(SIGPIPE, SIG_IGN);
+
+	unordered_map<int, unique_ptr<Client>> accepts;
+
+	int 				accept_fd;
+	socklen_t			clilen;
+	struct sockaddr_un  cliaddr;
+	char msg[SOCKET_MSG_SIZE];
+	for(;;)
+	{
+		nfds = epoll_wait(epollfd, events, MAX_EVENTS, 1000);
+		if(-1 == nfds)
+		{
+			cout  << __FUNCTION__ << "epoll_wait failed " << endl;
+			exit(EXIT_FAILURE);
+		}
+		for(int i = 0; i < nfds; ++i)
+		{
+			if(events[i].events & EPOLLIN)
+			{
+				if(events[i].data.fd == listen_fd)	// handle listen_fd
+				{
+					accept_fd = accept(listen_fd, (sockaddr *)&cliaddr, &clilen);
+					if(-1 == accept_fd)
+					{
+						cout  << __FUNCTION__ << "accept failed!" << endl;
+						exit(EXIT_FAILURE);
+					}
+					if(accepts.size() >= USER_LIMIT)
+					{
+						cout << __FUNCTION__ << "too many users" << endl;
+						close(accept_fd);
+						continue;
+					}
+					epoll_addfd(epollfd, accept_fd);
+					accepts[accept_fd] = make_unique<Client>();
+				}
+				else								// handle accept_fd
+				{
+					int fd = events[i].data.fd;
+					bzero(msg, SOCKET_MSG_SIZE);
+					int size = recv(fd, msg, SOCKET_MSG_SIZE, 0);
+					if(size < 0)
+					{
+						cout << __FUNCTION__ << "recv msg failed! errno= " << errno  
+							 <<	" remove client!" << endl;
+						epoll_removefd(epollfd, fd);
+						close(fd);	 
+						accepts.erase(fd);
+						continue;
+					}
+					else if(size > 0)
+					{
+						accepts[fd]->handleMsg(msg);
+					}
+					else
+					{
+						epoll_removefd(epollfd, fd);
+						close(fd);
+						accepts.erase(fd);
+					}
+				}
+			}
+			else
+			{
+				// expandable
+			}
+		}
+
+		// consumer
+		for(auto&& pair : accepts)
+		{
+			pair.second->doService();
+		}
+	}
+
+	close(epollfd);
+	close(listen_fd);
+	return 0;
+}
+
+void 
+sig_int(int signo)
+{
+	(void) (signo);
+	print_cpu_time();
+	exit(0);
+}
+
+void
+setCpuAffinity(int index)
+{
+	// set cpu affinity
+	const int NPROCESSORS = sysconf( _SC_NPROCESSORS_ONLN );
+    cpu_set_t set;
+    CPU_ZERO(&set);
+	int processor_index = index % NPROCESSORS;
+    CPU_SET(processor_index, &set);
+    sched_setaffinity(getpid(), sizeof(set), &set);
+}
+
+void listenSocket(int& listen_fd)
+{
 	struct sockaddr_un server_addr;
 
     // create socket
-	socket_fd = socket(PF_UNIX,SOCK_STREAM,0);
-	if(-1 == socket_fd){
-		cout << "Socket create failed!" << endl;
-		return -1;
+	listen_fd = socket(PF_UNIX,SOCK_STREAM,0);
+	if(-1 == listen_fd){
+		cout  << __FUNCTION__ << "Socket create failed!" << endl;
+		exit(EXIT_FAILURE);
 	}
     // remove SOCKET_PATH if exists
 	remove(SOCKET_PATH);
@@ -46,166 +171,54 @@ main()
 
     // bind socket
     cout << "Binding socket..." << endl;
-	ret = bind(socket_fd,(sockaddr *)&server_addr,sizeof(server_addr));
-	if(0 > ret){
-		cout << "Bind socket failed!" << endl;
-		return -1;
+	
+	if(bind(listen_fd,(sockaddr *)&server_addr,sizeof(server_addr)) < 0){
+		cout  << __FUNCTION__ << "Bind socket failed!" << endl;
+		exit(EXIT_FAILURE);
 	}
 	
     // listen socket
     cout << "Listening socket..." << endl;
-	ret = listen(socket_fd, 10);
-	if(-1 == ret){
-		cout << "Listen failed!" << endl;
-		return -1;
+	if(listen(listen_fd, 10) < 0){
+		cout  << __FUNCTION__ << "Listen failed!" << endl;
+		exit(EXIT_FAILURE);
 	}
     cout << "Waiting for new requests!" << endl;
-    
-	// pre-create children
-	pids = (pid_t *)calloc(nchildren, sizeof(pid_t));
-	for(int i = 0; i < nchildren; ++i)
-	{
-		pids[i] = child_make(i, socket_fd);
-	}
-	close(socket_fd);
-
-	// register signal SIGINT to gracefully close all the sub-process
-	signal(SIGINT, sig_int);
-
-	for(;;)
-		pause();
-
-	return 0;
-}
-
-void 
-sig_int(int signo)
-{
-	(void) (signo);
-	for(int i = 0; i < nchildren; ++i)
-	{
-		kill(pids[i], SIGTERM);
-	}
-	while(wait(nullptr) > 0)	// wait for all children
-	;
-	print_cpu_time();
-	exit(0);
-}
-
-void 
-sig_pipe(int signo)
-{
-	(void) (signo);
-}
-
-pid_t
-child_make(int i, int listen_fd)
-{
-	pid_t pid;
-
-	if((pid = fork()) > 0)
-		return pid;
-
-	int accept_fd;
-	socklen_t			clilen;
-	struct sockaddr_un  cliaddr;
-
-	// set cpu affinity
-	const int NPROCESSORS = sysconf( _SC_NPROCESSORS_ONLN );
-    cpu_set_t set;
-    CPU_ZERO(&set);
-	int processor_index = i%NPROCESSORS;
-    CPU_SET(processor_index, &set);
-    sched_setaffinity(getpid(), sizeof(set), &set);
-
-	cout << "child " << getpid() << " started on processor " << processor_index << endl;
-	for ( ; ; ) {
-		clilen = sizeof(cliaddr);
-		if ( (accept_fd = accept(listen_fd, (sockaddr *)&cliaddr, &clilen)) < 0) {
-			if (errno == EINTR)
-				continue;
-			else
-				cout << "accept failed!" << endl;
-		}
-
-		handle_request(accept_fd);
-		close(accept_fd);
-	}
 }
 
 void
-handle_request(int accept_fd)
+epoll_addfd(int epollfd, int fd)
 {
-	cout<< "\nchild " << getpid() << " start handling the request " <<endl;
-	char msg[SOCKET_MSG_SIZE];
-
-	// receive msg1, open file
-	bzero(msg, SOCKET_MSG_SIZE);
-	if(-1 == recv(accept_fd, msg, SOCKET_MSG_SIZE, 0))
+	epoll_event event;
+	event.data.fd = fd;
+	event.events = EPOLLIN | EPOLLET;
+	if(-1 == epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event))
 	{
-		cout << "recv msg1 failed! errno= " << errno << endl;
-		return;
+		cout << __FUNCTION__ << "epoll_ctl failed" << endl;
+		exit(EXIT_FAILURE);
 	}
-	msg[strlen(msg)] = '\0';
-	int file_fd = open(msg, O_APPEND | O_CREAT | O_WRONLY , S_IRWXU | S_IRWXG);
-	if(-1 == file_fd)
-	{
-		cout << "open file failed! errno=" << errno << endl;
-		return;
-	}
-	cout << "saving log to path: " << msg << endl;
-	
-	// receive msg2, open and map shared memory that client has created
-	bzero(msg, SOCKET_MSG_SIZE);
-	if(-1 == recv(accept_fd, msg, SOCKET_MSG_SIZE, 0))
-	{
-		cout << "recv msg2 failed! errno= " << errno << endl;
-		close(file_fd);
-		return;
-	}
-	msg[strlen(msg)] = '\0';
-	// cout << "shm_name: " << msg << " strlen=" << strlen(msg) <<endl;
-    int shm_fd = shm_open(msg, O_RDWR, FILE_MODE);
-	if(-1 == shm_fd)
-	{
-		cout << "shm_open failed! errno= "  << errno << endl;
-		close(file_fd);
-		return;
-	}
-    ring_queue_t *rq = (ring_queue_t *)mmap(NULL, sizeof(ring_queue_t), PROT_READ | PROT_WRITE,
-               MAP_SHARED, shm_fd, 0);
+	setNonBlocking(fd);
+}
 
-	// close unnecessary file descriptions		   
-    close(shm_fd);
-	
-	signal(SIGPIPE, sig_pipe);
+void epoll_removefd(int epollfd, int fd)
+{
+	epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, 0);
+}
 
-    // consumer
-	char log[RING_QUEUE_ITEM_SIZE];
-	int retry_times = 0;
-    while(true) {
-		if(-1 != ring_queue_pop(rq, log))
-		{
-			// printf("%s", log);
-			write(file_fd, log, strlen(log));
-		}
-		else
-		{
-			sleep(RING_QUEUE_RETRY_INTERVAL);
-			retry_times++;
-			if(RING_QUEUE_RETRY_TIMES == retry_times)	
-			{
-				retry_times = 0;
-				// check socket connection
-				int ret = send(accept_fd, nullptr, 0, 0);
-				if(-1 == ret && errno == EPIPE)
-				{
-					cout << "peer disconnected! errno= " << errno << endl;
-					break;
-				}
-			}
-		}
-    }
-
-	close(file_fd);
+void
+setNonBlocking(int sock)
+{
+	int opts;
+	opts = fcntl(sock, F_GETFL);
+	if(opts < 0)
+	{
+		cout << __FUNCTION__ << "fcntl GETFL failed! " << endl;
+		exit(EXIT_FAILURE);
+	}
+	opts = opts | O_NONBLOCK;
+	if(fcntl(sock, F_SETFL, opts) < 0)
+	{
+		cout << __FUNCTION__ << "fcntl SETFL failed! " << endl;
+		exit(EXIT_FAILURE);
+	}
 }

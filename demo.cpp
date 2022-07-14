@@ -12,23 +12,23 @@ using namespace std;
 using namespace Logging;
 
 void sig_int(int signo);
-void sig_pipe(int signo);
 
 int 
 main()
 {
 	Logging::Agent agent;
 	// this is just a demo, so I won't check it's return value
-	agent.setLogPath("demo.log");
-	agent.setLogLevel(Level::DEBUG);
 	agent.start();
+	agent.setLogPath("demo.log");
+	agent.setShmName();
+	agent.setLogLevel(Level::DEBUG);
 
 	signal(SIGINT, sig_int);
-	signal(SIGPIPE, sig_pipe);
+	signal(SIGPIPE, SIG_IGN);
 	string log;
 	while(true)
 	{
-		cout << "Input log>>> ";
+		cout << " Input log>>> ";
 		cin >> log;
 		agent.write(Logging::Level::NOTICE, log);
     }
@@ -41,10 +41,4 @@ sig_int(int signo)
 	(void) (signo);
 	print_cpu_time();
 	exit(0);
-}
-
-void 
-sig_pipe(int signo)
-{
-	(void) (signo);
 }

@@ -4,22 +4,33 @@
 #include <strings.h>
 #include <netinet/in.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <signal.h>
 #include <time.h>
 #include <iostream>
 
+#include "../../interface/include/pathMsg.h"
+#include "../../interface/include/shmMsg.h"
+
 namespace Logging
 {
 using namespace std;
-Agent::Agent(): level(Level::NOTICE), logPath(""), socket_fd(-1), rq(nullptr)
+Agent::Agent(): level(Level::NOTICE), logPath(""), 
+shm_name(""), socket_fd(-1), rq(nullptr)
 {
 
 }
 
 Agent::~Agent()
 {
-    reset();
+    if(-1 != socket_fd)
+    {
+        close(socket_fd);
+    }
+    if(rq)
+    {
+        munmap(rq, sizeof(ring_queue_t));
+        rq = nullptr;
+    }
 }
 
 int
@@ -49,75 +60,59 @@ Agent::start()
 		return -1;
 	}
 
-	// send file path
-    if(logPath.empty())
-    {
-        logPath = to_string(getpid()) + ".log";
-    }
-	ret = send(socket_fd, logPath.c_str(),  SOCKET_MSG_SIZE, 0);
-	if(-1 == ret){
-		cout << __FUNCTION__ << "send failed! errno= " << errno << endl;
-		close(socket_fd);
-		return -1;
-	}
-
-    // create and map shared memory, send shm_name to peer
-	string shm_name = "shm" + to_string(getpid());
-	shm_unlink(shm_name.c_str());        // OK if this fails
-    int shm_fd = shm_open(shm_name.c_str(), O_RDWR | O_CREAT | O_EXCL, FILE_MODE);
-	if(-1 == shm_fd){
-		cout << __FUNCTION__ << "shm_open failed ! errno= " << errno << endl;
-		close(socket_fd);
-		return -1;
-	}
-	ftruncate(shm_fd, sizeof(ring_queue_t));
-    rq = (ring_queue_t *)mmap(NULL, sizeof(ring_queue_t), PROT_READ | PROT_WRITE,
-               MAP_SHARED, shm_fd, 0);
-	ret = send(socket_fd, shm_name.c_str(), SOCKET_MSG_SIZE, 0);	
-	if(-1 == ret){
-		cout << __FUNCTION__ << "send failed! errno= " << errno << endl;
-		close(socket_fd);
-		close(shm_fd);
-		return -1;
-	}
-
-	// close unnecessary file descriptions
-	close(shm_fd);
     return ret;
-}
-
-void
-Agent::reset()
-{
-    if(-1 != socket_fd)
-    {
-        close(socket_fd);
-    }
-    if(rq)
-    {
-        munmap(rq, sizeof(ring_queue_t));
-        rq = nullptr;
-    }
-    logPath.clear();
 }
 
 bool
 Agent::setLogPath(const string& path)
 {
-    if(-1 != socket_fd)
-    {
-        cout << __FUNCTION__ << "failed! Agent is running, need to reset & start again" <<endl;
-        return false;
-    }
-
+    if(path == logPath) return true;
     if(!pathValidation(path))
     {
         cout << __FUNCTION__ << "failed! path invalid" <<endl;
         return false;
     }
+    if(-1 == socket_fd)
+    {
+        cout << __FUNCTION__ << "failed! Agent is not connected, need to start again" <<endl;
+        return false;
+    }
 
     logPath = path;
-    return true;
+    std::shared_ptr<PathMsg> pathMsg= make_shared<PathMsg>(logPath);
+    return sendIpcMsg(pathMsg);
+}
+
+bool
+Agent::setShmName(const string& name)
+{
+    if(shm_name == name) return true;
+    if(-1 == socket_fd)
+    {
+        cout << __FUNCTION__ << "failed! Agent is not connected, need to start again" <<endl;
+        return false;
+    }
+    
+    shm_name = name;
+    if(rq)
+    {
+        munmap(rq, sizeof(ring_queue_t));
+        rq = nullptr;
+    }
+    // create and map shared memory, send shm_name to peer
+	shm_unlink(shm_name.c_str());        // OK if this fails
+    int shm_fd = shm_open(shm_name.c_str(), O_RDWR | O_CREAT, FILE_MODE);
+	if(-1 == shm_fd){
+		cout << __FUNCTION__ << "shm_open failed ! errno= " << errno << endl;
+		close(socket_fd);
+		return false;
+	}
+	ftruncate(shm_fd, sizeof(ring_queue_t));
+    rq = (ring_queue_t *)mmap(NULL, sizeof(ring_queue_t), PROT_READ | PROT_WRITE,
+               MAP_SHARED, shm_fd, 0);
+    close(shm_fd);           
+    std::shared_ptr<ShmMsg> shmMsg= make_shared<ShmMsg>(shm_name);
+    return sendIpcMsg(shmMsg);
 }
 
 void
@@ -147,17 +142,7 @@ Agent::write(Level lv, const string& log)
         time_t t = time(0);
         strftime(tm, 64, "%Y-%m-%d %H:%M:%S", localtime(&t));
         snprintf(context, RING_QUEUE_ITEM_SIZE, "%s  pid[%ld]: %s \n", tm, (long) getpid(), log.c_str());
-        int retry_times = 0;
-        while(-1 == ring_queue_push(rq, context))
-        {
-            sleep(RING_QUEUE_RETRY_INTERVAL);
-            retry_times++;
-            if(RING_QUEUE_RETRY_TIMES == retry_times)
-            {
-                cout << __FUNCTION__ <<" failed! retry time out! " << endl;
-                return false;
-            }
-        }
+        return ring_queue_push(rq, context);
     }
 
     return true;
@@ -190,5 +175,14 @@ Agent::pathValidation(const std::string& path)
 	}
 
 	return -1 != ret;
+}
+
+bool 
+Agent::sendIpcMsg(std::shared_ptr<InterfaceMsg> msg)
+{
+    char ipc[SOCKET_MSG_SIZE];
+    bzero(ipc, SOCKET_MSG_SIZE);
+    msg->encode(ipc);
+	return -1 != send(socket_fd, ipc,  SOCKET_MSG_SIZE, 0);
 }
 }
