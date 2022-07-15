@@ -1,4 +1,5 @@
 #include "shm.h"
+#include <stdint.h>
 
 namespace Logging
 {
@@ -7,7 +8,7 @@ class Client
 public:
 	Client();
 	~Client();
-    void handleMsg(char* msg);
+    void handleMsg(uint8_t* msg);
     void doService();
     bool isConnected();
 

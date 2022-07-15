@@ -13,16 +13,16 @@ PathMsg::PathMsg(const std::string& p) : InterfaceMsg(InterfaceMsgType::PATH), p
 }
 
 void 
-PathMsg::encode(char *buf)
+PathMsg::serialize(ByteBuffer& buf)
 {
-    InterfaceMsg::encode(buf);
-    memcpy(&(buf[InterfaceMsg::BUFF_OFFSET]), path.c_str(), path.size());
+    InterfaceMsg::serialize(buf);
+    buf.putString(path);
 }
 
 void 
-PathMsg::decode(char *buf)
+PathMsg::unserialize(ByteBuffer& buf)
 {
-    path.assign(buf);
+    path = buf.getString();
 }
 
 const std::string& 

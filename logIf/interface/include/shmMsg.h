@@ -10,8 +10,8 @@ class ShmMsg : public InterfaceMsg
 public:
     ShmMsg();
     ShmMsg(const std::string& p);
-    void encode(char *buf) override;
-    void decode(char *buf) override;
+    void serialize(ByteBuffer& buf) override;
+    void unserialize(ByteBuffer& buf) override;
     const std::string& getShmName() const;
 private:     
     std::string shm_name;

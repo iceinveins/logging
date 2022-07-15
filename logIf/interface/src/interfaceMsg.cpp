@@ -8,8 +8,8 @@ InterfaceMsg::InterfaceMsg(InterfaceMsgType t) : msgType(t)
 
 }
 void 
-InterfaceMsg::encode(char *buf)
+InterfaceMsg::serialize(ByteBuffer& buf)
 {
-    memcpy(&(buf[0]), (uint8_t*)&msgType, sizeof(msgType));
+    buf.putShort(msgType);
 }  
 }

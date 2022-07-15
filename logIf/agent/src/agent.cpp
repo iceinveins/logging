@@ -180,9 +180,8 @@ Agent::pathValidation(const std::string& path)
 bool 
 Agent::sendIpcMsg(std::shared_ptr<InterfaceMsg> msg)
 {
-    char ipc[SOCKET_MSG_SIZE];
-    bzero(ipc, SOCKET_MSG_SIZE);
-    msg->encode(ipc);
-	return -1 != send(socket_fd, ipc,  SOCKET_MSG_SIZE, 0);
+    ByteBuffer buf(SOCKET_MSG_SIZE);
+    msg->serialize(buf);
+	return -1 != send(socket_fd, buf.data(),  SOCKET_MSG_SIZE, 0);
 }
 }

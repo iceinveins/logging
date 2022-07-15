@@ -32,16 +32,17 @@ Client::~Client()
 }
 
 void 
-Client::handleMsg(char* msg)
+Client::handleMsg(uint8_t* msg)
 {
-    uint8_t msgType = *((uint8_t*)&msg[0]);
+    ByteBuffer buf(msg, SOCKET_MSG_SIZE);
+    uint16_t msgType = buf.getShort();
 
     switch(msgType) // todo messagefactory
     {
         case InterfaceMsgType::PATH:
         {
             auto&& pathMsg = make_shared<PathMsg>();
-            pathMsg->decode(&msg[InterfaceMsg::BUFF_OFFSET]);
+            pathMsg->unserialize(buf);
             if(-1 != file_fd)
             {
                 close(file_fd);
@@ -57,7 +58,7 @@ Client::handleMsg(char* msg)
         case InterfaceMsgType::SHM:
         {
             auto&& shmMsg = make_shared<ShmMsg>();
-            shmMsg->decode(&msg[InterfaceMsg::BUFF_OFFSET]);
+            shmMsg->unserialize(buf);
             if(rq)  // consume all the rest msg
             {
                 while(!ring_queue_is_empty(rq))

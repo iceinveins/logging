@@ -57,7 +57,7 @@ main()
 	int 				accept_fd;
 	socklen_t			clilen;
 	struct sockaddr_un  cliaddr;
-	char msg[SOCKET_MSG_SIZE];
+	uint8_t msg[SOCKET_MSG_SIZE];
 	for(;;)
 	{
 		nfds = epoll_wait(epollfd, events, MAX_EVENTS, 1000);

@@ -1,5 +1,6 @@
 #pragma once
 #include <string.h>
+#include "util.h"
 namespace Logging
 {
 enum InterfaceMsgType
@@ -13,8 +14,8 @@ class InterfaceMsg
 public:
     static constexpr int BUFF_OFFSET = 2;   // todo bytebuff
     InterfaceMsg(InterfaceMsgType t);
-    virtual void encode(char *buf);
-    virtual void decode(char *buf) = 0;
+    virtual void serialize(ByteBuffer& buf);
+    virtual void unserialize(ByteBuffer& buf) = 0;
 private:
     InterfaceMsgType msgType;
 };

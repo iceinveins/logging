@@ -13,16 +13,16 @@ ShmMsg::ShmMsg(const std::string& p) : InterfaceMsg(InterfaceMsgType::SHM), shm_
 }
 
 void 
-ShmMsg::encode(char *buf)
+ShmMsg::serialize(ByteBuffer& buf)
 {
-    InterfaceMsg::encode(buf);
-    memcpy(&(buf[InterfaceMsg::BUFF_OFFSET]), shm_name.c_str(), shm_name.size());
+    InterfaceMsg::serialize(buf);
+    buf.putString(shm_name);
 }
 
 void 
-ShmMsg::decode(char *buf)
+ShmMsg::unserialize(ByteBuffer& buf)
 {
-    shm_name.assign(buf);
+    shm_name = buf.getString();
 }
 
 const std::string& 
