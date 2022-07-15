@@ -8,7 +8,7 @@ InterfaceMsg::InterfaceMsg(InterfaceMsgType t) : msgType(t)
 
 }
 void 
-InterfaceMsg::serialize(ByteBuffer& buf)
+InterfaceMsg::serialize(ByteBuffer& buf) const
 {
     buf.putShort(msgType);
 }  

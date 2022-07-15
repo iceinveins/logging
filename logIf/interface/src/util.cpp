@@ -23,18 +23,18 @@ print_cpu_time()
 
 ByteBuffer::ByteBuffer(uint32_t size) 
 {
-	buf.reserve(size);
+	buf.resize(size, '0');
 	clear();
 }
 ByteBuffer::ByteBuffer(uint8_t* arr, uint32_t size) 
 {
 	if (arr == nullptr) // allocate a blank buffer of the size
     {   
-		buf.reserve(size);
+		buf.resize(size, '0');
 		clear();
 	} else 
     {
-		buf.reserve(size);
+		buf.resize(size, '0');
 		clear();
 		putBytes(arr, size);
 	}

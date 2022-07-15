@@ -8,9 +8,9 @@ namespace Logging
 class ShmMsg : public InterfaceMsg
 {
 public:
-    ShmMsg();
-    ShmMsg(const std::string& p);
-    void serialize(ByteBuffer& buf) override;
+    explicit ShmMsg();
+    explicit ShmMsg(const std::string& p);
+    void serialize(ByteBuffer& buf) const override;
     void unserialize(ByteBuffer& buf) override;
     const std::string& getShmName() const;
 private:     

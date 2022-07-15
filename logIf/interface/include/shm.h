@@ -11,7 +11,7 @@
 namespace Logging
 {  
 constexpr int RING_QUEUE_ITEM_SIZE      = 256;     // max bytes per message
-constexpr int RING_QUEUE_CAPACITY       = 5;       // max number of messages
+constexpr int RING_QUEUE_CAPACITY       = 50;      // max number of messages
 
 struct ring_queue_t {
     volatile int write_flag;

@@ -67,8 +67,6 @@ private:
 		if (size() < (wpos + s))
 			buf.resize(wpos + s);
 		memcpy(&buf[wpos], (uint8_t*) &data, s);
-		//printf("writing %c to %i\n", (uint8_t)data, wpos);
-
 		wpos += s;
 	}
 };

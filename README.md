@@ -15,7 +15,7 @@ and all you need is to include the head files in logIf, link their static librar
 2. change the variable 'MAX_EVENT' in logserver.cpp to the expected max number of epoll events. (default = 10)
 3. change the SOCKET_MSG_SIZE in ipc.h based on the max length of logpath. (default = 50)
 4. change the RING_QUEUE_ITEM_SIZE in shm.h based on the max length of log. (default = 256)
-5. change the RING_QUEUE_CAPACITY in shm.h according to the situation. (default = 5)
+5. change the RING_QUEUE_CAPACITY in shm.h according to the situation. (default = 50)
 6. change the algorithm of sched_setaffinity in logserver.cpp to avoid the key processes, the ideal situation is that each
 process owns one processer. (default = child_index % NPROCESSORS)
 

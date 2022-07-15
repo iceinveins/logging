@@ -35,16 +35,20 @@ void
 Client::handleMsg(uint8_t* msg)
 {
     ByteBuffer buf(msg, SOCKET_MSG_SIZE);
-    uint16_t msgType = buf.getShort();
+    uint16_t msgType = buf.getShort();  // improvement: add abstract genericAgent class for all ipc message meta info
 
-    switch(msgType) // todo messagefactory
+    switch(msgType)
     {
         case InterfaceMsgType::PATH:
         {
             auto&& pathMsg = make_shared<PathMsg>();
             pathMsg->unserialize(buf);
-            if(-1 != file_fd)
+            if(isConnected())  // consume all the rest msg
             {
+                while(!ring_queue_is_empty(rq))
+                {
+                    doService();
+                }
                 close(file_fd);
             }
             file_fd = open(pathMsg->getPath().c_str(), O_APPEND | O_CREAT | O_WRONLY , S_IRWXU | S_IRWXG);
@@ -59,7 +63,7 @@ Client::handleMsg(uint8_t* msg)
         {
             auto&& shmMsg = make_shared<ShmMsg>();
             shmMsg->unserialize(buf);
-            if(rq)  // consume all the rest msg
+            if(isConnected())  // consume all the rest msg
             {
                 while(!ring_queue_is_empty(rq))
                 {

@@ -13,7 +13,7 @@ PathMsg::PathMsg(const std::string& p) : InterfaceMsg(InterfaceMsgType::PATH), p
 }
 
 void 
-PathMsg::serialize(ByteBuffer& buf)
+PathMsg::serialize(ByteBuffer& buf) const
 {
     InterfaceMsg::serialize(buf);
     buf.putString(path);

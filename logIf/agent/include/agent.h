@@ -22,8 +22,8 @@ public:
     void setLogLevel(Level lv);                 // only those <= LEVEL will be write, others will be droped
     bool write(Level lv, const std::string& log);
 private:
-    bool pathValidation(const std::string& path);
-    bool sendIpcMsg(std::shared_ptr<InterfaceMsg> msg);
+    bool pathValidation(const std::string& path) const;
+    bool sendIpcMsg(std::shared_ptr<InterfaceMsg> msg) const;
 
     Level           level;
     std::string     logPath;

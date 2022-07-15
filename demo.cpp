@@ -24,7 +24,11 @@ main()
 	agent.setLogLevel(Level::DEBUG);
 
 	// test changing the logPath while connected
-	agent.write(Logging::Level::NOTICE, "change logPath to demo.log");
+	for(int i=0; i<10;++i)
+	{
+		agent.write(Logging::Level::NOTICE, "bla bla blablabla");
+	}
+	
 	agent.setLogPath("demo.log");
 
 	signal(SIGINT, sig_int);

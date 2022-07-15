@@ -13,7 +13,7 @@ ShmMsg::ShmMsg(const std::string& p) : InterfaceMsg(InterfaceMsgType::SHM), shm_
 }
 
 void 
-ShmMsg::serialize(ByteBuffer& buf)
+ShmMsg::serialize(ByteBuffer& buf) const
 {
     InterfaceMsg::serialize(buf);
     buf.putString(shm_name);

@@ -12,9 +12,8 @@ enum InterfaceMsgType
 class InterfaceMsg
 {
 public:
-    static constexpr int BUFF_OFFSET = 2;   // todo bytebuff
-    InterfaceMsg(InterfaceMsgType t);
-    virtual void serialize(ByteBuffer& buf);
+    explicit InterfaceMsg(InterfaceMsgType t);
+    virtual void serialize(ByteBuffer& buf) const;
     virtual void unserialize(ByteBuffer& buf) = 0;
 private:
     InterfaceMsgType msgType;

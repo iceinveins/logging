@@ -54,9 +54,9 @@ main()
 
 	unordered_map<int, unique_ptr<Client>> accepts;
 
-	int 				accept_fd;
-	socklen_t			clilen;
+	int 				accept_fd = -1;
 	struct sockaddr_un  cliaddr;
+	socklen_t			clilen = sizeof(cliaddr);
 	uint8_t msg[SOCKET_MSG_SIZE];
 	for(;;)
 	{
@@ -190,6 +190,7 @@ void
 epoll_addfd(int epollfd, int fd)
 {
 	epoll_event event;
+	memset(&event, 0, sizeof(event));	// fix valgrind error dure to padding
 	event.data.fd = fd;
 	event.events = EPOLLIN | EPOLLET;
 	if(-1 == epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event))

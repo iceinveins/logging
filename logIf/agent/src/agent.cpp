@@ -126,7 +126,7 @@ Agent::write(Level lv, const string& log)
 {
     if(-1 == socket_fd || nullptr == rq)
     {
-        cout << __FUNCTION__ <<" failed! Agent not init! " << endl;
+        cout << __FUNCTION__ <<" failed! Agent not start! " << endl;
         return false;
     }
     if(log.size() > RING_QUEUE_ITEM_SIZE)
@@ -149,7 +149,7 @@ Agent::write(Level lv, const string& log)
 }
 
 bool
-Agent::pathValidation(const std::string& path)
+Agent::pathValidation(const std::string& path) const
 {
     if(path.size() > SOCKET_MSG_SIZE)
     {
@@ -178,7 +178,7 @@ Agent::pathValidation(const std::string& path)
 }
 
 bool 
-Agent::sendIpcMsg(std::shared_ptr<InterfaceMsg> msg)
+Agent::sendIpcMsg(std::shared_ptr<InterfaceMsg> msg) const
 {
     ByteBuffer buf(SOCKET_MSG_SIZE);
     msg->serialize(buf);
