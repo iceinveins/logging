@@ -12,6 +12,11 @@ ShmMsg::ShmMsg(const std::string& p) : InterfaceMsg(InterfaceMsgType::SHM), shm_
 
 }
 
+ShmMsg::~ShmMsg()
+{
+
+}
+
 void 
 ShmMsg::serialize(ByteBuffer& buf) const
 {

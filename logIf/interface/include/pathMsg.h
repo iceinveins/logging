@@ -10,6 +10,7 @@ class PathMsg : public InterfaceMsg
 public:
     explicit PathMsg();
     explicit PathMsg(const std::string& p);
+    ~PathMsg() override;
     void serialize(ByteBuffer& buf) const override;
     void unserialize(ByteBuffer& buf) override;
     const std::string& getPath() const;

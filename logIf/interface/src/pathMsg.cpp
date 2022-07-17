@@ -12,6 +12,11 @@ PathMsg::PathMsg(const std::string& p) : InterfaceMsg(InterfaceMsgType::PATH), p
 
 }
 
+PathMsg::~PathMsg()
+{
+
+}
+
 void 
 PathMsg::serialize(ByteBuffer& buf) const
 {

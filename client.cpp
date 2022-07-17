@@ -82,7 +82,7 @@ Client::handleMsg(uint8_t* msg)
         }
         break;
         default:
-            cout << __FUNCTION__ << " InterfaceMsgType not support! " << endl;
+            cout << __FUNCTION__ << " InterfaceMsgType not support! type=" << msgType << endl;
     }
 }
 

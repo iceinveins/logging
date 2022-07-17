@@ -7,6 +7,12 @@ InterfaceMsg::InterfaceMsg(InterfaceMsgType t) : msgType(t)
 {
 
 }
+
+InterfaceMsg::~InterfaceMsg()
+{
+
+}
+
 void 
 InterfaceMsg::serialize(ByteBuffer& buf) const
 {

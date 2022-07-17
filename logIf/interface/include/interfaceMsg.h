@@ -13,6 +13,7 @@ class InterfaceMsg
 {
 public:
     explicit InterfaceMsg(InterfaceMsgType t);
+    virtual ~InterfaceMsg();
     virtual void serialize(ByteBuffer& buf) const;
     virtual void unserialize(ByteBuffer& buf) = 0;
 private:

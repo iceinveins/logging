@@ -72,7 +72,7 @@ Agent::setLogPath(const string& path)
         cout << __FUNCTION__ << " failed! path invalid" <<endl;
         return false;
     }
-    if(-1 == socket_fd)
+    if(!isConnected())
     {
         cout << __FUNCTION__ << " failed! Agent is not connected, need to start again" <<endl;
         return false;
@@ -87,7 +87,7 @@ bool
 Agent::setShmName(const string& name)
 {
     if(shm_name == name) return true;
-    if(-1 == socket_fd)
+    if(!isConnected())
     {
         cout << __FUNCTION__ << " failed! Agent is not connected, need to start again" <<endl;
         return false;
@@ -146,6 +146,12 @@ Agent::write(Level lv, const string& log)
     }
 
     return true;
+}
+
+bool
+Agent::isConnected() const
+{
+    return -1 != socket_fd;
 }
 
 bool

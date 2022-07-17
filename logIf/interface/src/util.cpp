@@ -21,23 +21,13 @@ print_cpu_time()
     std::cout << "\nuser time = " << user << ", sys time = " << sys << std::endl;
 }
 
-ByteBuffer::ByteBuffer(uint32_t size) 
+ByteBuffer::ByteBuffer(uint32_t size) : wpos(0), rpos(0), buf(size)
 {
-	buf.resize(size, '0');
-	clear();
+
 }
-ByteBuffer::ByteBuffer(uint8_t* arr, uint32_t size) 
+ByteBuffer::ByteBuffer(uint8_t* arr, uint32_t size) : wpos(0), rpos(0), buf(size)
 {
-	if (arr == nullptr) // allocate a blank buffer of the size
-    {   
-		buf.resize(size, '0');
-		clear();
-	} else 
-    {
-		buf.resize(size, '0');
-		clear();
-		putBytes(arr, size);
-	}
+	putBytes(arr, size);
 }
 
 uint32_t 
@@ -182,12 +172,14 @@ ByteBuffer::printAH()
 	uint32_t length = buf.size();
 	std::cout << "ByteBuffer " << " Length= " << length << " ASCII & Hex Print" << std::endl;
 
-	for (uint32_t i = 0; i < length; i++) {
+	for (uint32_t i = 0; i < length; i++) 
+	{
 		std::printf("0x%02x ", buf[i]);
 	}
 
 	std::printf("\n");
-	for (uint32_t i = 0; i < length; i++) {
+	for (uint32_t i = 0; i < length; i++) 
+	{
 		std::printf("%c ", buf[i]);
 	}
 

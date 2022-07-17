@@ -19,6 +19,7 @@ main()
 	Logging::Agent agent;
 	// this is just a demo, so I won't check it's return value
 	agent.start();
+	if(!agent.isConnected()) return -1;
 	agent.setLogPath();
 	agent.setShmName();
 	agent.setLogLevel(Level::DEBUG);
