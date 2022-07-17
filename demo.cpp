@@ -14,12 +14,23 @@ using namespace Logging;
 void sig_int(int signo);
 
 int 
-main()
+main(int argc, char** argv)
 {
-	Util::setCpuAffinity(1);
-	
+	if(argc != 2)
+	{
+		cout << "usage: ClientDemo <cpuIndex>" <<endl;
+		return -1;
+	}
+	uint32_t cpuIndex = 0;
+	if(!Util::parseCpuIndex(argv[1], cpuIndex))
+	{
+		cout << "usage: ClientDemo <cpuIndex>; <cpuIndex> must be numberic" <<endl;
+		return -1;	
+	}
+	Util::setCpuAffinity(cpuIndex);
+
 	Logging::Agent agent;
-	// this is just a demo, so I won't check it's return value
+	// this is just a demo, so I won't pay much attention on it's return value
 	agent.start();
 	if(!agent.isConnected()) return -1;
 	agent.setLogPath();

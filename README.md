@@ -33,12 +33,12 @@ make
 
 start server
 ```
-./Logging
+./Logging 0
 ```
 
-start client
+start client1
 ```        
-./ClientDemo
+./ClientDemo 1
 ```
 you may see results in <clientPid>.log and demo.log
 The expected context in <clientPid>.log shoud be:
@@ -50,6 +50,11 @@ hello hello hello
 change to demo.log
 
 and in demo.log should be those you typed after the instruction "Input log>>> "
+
+start more clients
+```        
+./ClientDemo <cpuIndex>     // better to make cpuIndex differ from other processes
+```
 
 ## clean up
 ```

@@ -29,9 +29,20 @@ constexpr int MAX_EVENTS = 10;
 constexpr int USER_LIMIT = 3;
 
 int
-main()
+main(int argc, char** argv)
 {
-	Util::setCpuAffinity(0);
+	if(argc != 2)
+	{
+		cout << "usage: Logging <cpuIndex>" <<endl;
+		return -1;
+	}
+	uint32_t cpuIndex = 0;
+	if(!Util::parseCpuIndex(argv[1], cpuIndex))
+	{
+		cout << "usage: Logging <cpuIndex>; <cpuIndex> must be numberic" <<endl;
+		return -1;
+	}
+	Util::setCpuAffinity(cpuIndex);
 
     int listen_fd;
 	listenSocket(listen_fd);

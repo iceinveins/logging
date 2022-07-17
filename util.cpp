@@ -2,11 +2,26 @@
 #include <sched.h>
 #include <sys/resource.h>
 #include <iostream>
+#include <string.h>
 
 namespace Util
 {
+bool 
+parseCpuIndex(char* str, uint32_t& index)
+{
+    size_t i = 0;
+    size_t size = strlen(str);
+    while(i < size && str[i] == '0') i++;
+	for(; i < size; ++i)
+	{
+		if(!isdigit(str[i])) return false;
+		index = index * 10 + (str[i] - '0');
+	}
+    return true;
+}
+
 void
-setCpuAffinity(int index)
+setCpuAffinity(uint32_t index)
 {
 	// set cpu affinity
 	const int NPROCESSORS = sysconf( _SC_NPROCESSORS_ONLN );
