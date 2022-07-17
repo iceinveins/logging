@@ -44,7 +44,7 @@ Agent::start()
     // create socket
 	socket_fd = socket(PF_UNIX, SOCK_STREAM, 0);
 	if(-1 == socket_fd){
-		cout << __FUNCTION__ << "Socket create failed! errno= " << errno << endl;
+		cout << __FUNCTION__ << " Socket create failed! errno= " << errno << endl;
 		return -1;
 	}
     
@@ -56,7 +56,7 @@ Agent::start()
     // connect socket
 	ret = connect(socket_fd, (sockaddr *)&server_addr, sizeof(server_addr));
 	if(-1 == ret){
-		cout << __FUNCTION__ << "Connect socket failed! errno= " << errno << endl;
+		cout << __FUNCTION__ << " Connect socket failed! errno= " << errno << endl;
 		return -1;
 	}
 
@@ -69,12 +69,12 @@ Agent::setLogPath(const string& path)
     if(path == logPath) return true;
     if(!pathValidation(path))
     {
-        cout << __FUNCTION__ << "failed! path invalid" <<endl;
+        cout << __FUNCTION__ << " failed! path invalid" <<endl;
         return false;
     }
     if(-1 == socket_fd)
     {
-        cout << __FUNCTION__ << "failed! Agent is not connected, need to start again" <<endl;
+        cout << __FUNCTION__ << " failed! Agent is not connected, need to start again" <<endl;
         return false;
     }
 
@@ -89,7 +89,7 @@ Agent::setShmName(const string& name)
     if(shm_name == name) return true;
     if(-1 == socket_fd)
     {
-        cout << __FUNCTION__ << "failed! Agent is not connected, need to start again" <<endl;
+        cout << __FUNCTION__ << " failed! Agent is not connected, need to start again" <<endl;
         return false;
     }
     
@@ -103,7 +103,7 @@ Agent::setShmName(const string& name)
 	shm_unlink(shm_name.c_str());        // OK if this fails
     int shm_fd = shm_open(shm_name.c_str(), O_RDWR | O_CREAT, FILE_MODE);
 	if(-1 == shm_fd){
-		cout << __FUNCTION__ << "shm_open failed ! errno= " << errno << endl;
+		cout << __FUNCTION__ << " shm_open failed ! errno= " << errno << endl;
 		close(socket_fd);
 		return false;
 	}

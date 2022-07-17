@@ -43,8 +43,8 @@ main()
 	epollfd = epoll_create1(0);
 	if(-1 == epollfd)
 	{
-		cout  << __FUNCTION__ << "epoll_create1 failed!" << endl;
-		exit(EXIT_FAILURE);
+		cout  << __FUNCTION__ << " epoll_create1 failed!" << endl;
+		std::exit(EXIT_FAILURE);
 	}
 	epoll_addfd(epollfd, listen_fd);
 
@@ -63,38 +63,38 @@ main()
 		nfds = epoll_wait(epollfd, events, MAX_EVENTS, 1000);
 		if(-1 == nfds)
 		{
-			cout  << __FUNCTION__ << "epoll_wait failed " << endl;
-			exit(EXIT_FAILURE);
+			cout  << __FUNCTION__ << " epoll_wait failed " << endl;
+			std::exit(EXIT_FAILURE);
 		}
 		for(int i = 0; i < nfds; ++i)
 		{
 			if(events[i].events & EPOLLIN)
 			{
-				if(events[i].data.fd == listen_fd)	// handle listen_fd
+				if(events[i].data.fd == listen_fd)			// handle listen_fd
 				{
 					accept_fd = accept(listen_fd, (sockaddr *)&cliaddr, &clilen);
 					if(-1 == accept_fd)
 					{
-						cout  << __FUNCTION__ << "accept failed!" << endl;
-						exit(EXIT_FAILURE);
+						cout  << __FUNCTION__ << " accept failed!" << endl;
+						std::exit(EXIT_FAILURE);
 					}
 					if(accepts.size() >= USER_LIMIT)
 					{
-						cout << __FUNCTION__ << "too many users" << endl;
+						cout << __FUNCTION__ << " too many users" << endl;
 						close(accept_fd);
 						continue;
 					}
 					epoll_addfd(epollfd, accept_fd);
 					accepts[accept_fd] = make_unique<Client>();
 				}
-				else								// handle accept_fd
+				else if(accepts.count(events[i].data.fd))	// handle accept_fd
 				{
 					int fd = events[i].data.fd;
 					bzero(msg, SOCKET_MSG_SIZE);
 					int size = recv(fd, msg, SOCKET_MSG_SIZE, 0);
 					if(size < 0)
 					{
-						cout << __FUNCTION__ << "recv msg failed! errno= " << errno  
+						cout << __FUNCTION__ << " recv msg failed! errno= " << errno  
 							 <<	" remove client!" << endl;
 						epoll_removefd(epollfd, fd);
 						close(fd);	 
@@ -111,6 +111,10 @@ main()
 						close(fd);
 						accepts.erase(fd);
 					}
+				}
+				else
+				{
+					// expandable
 				}
 			}
 			else
@@ -136,7 +140,7 @@ sig_int(int signo)
 {
 	(void) (signo);
 	print_cpu_time();
-	exit(0);
+	std::exit(0);
 }
 
 void
@@ -158,8 +162,8 @@ void listenSocket(int& listen_fd)
     // create socket
 	listen_fd = socket(PF_UNIX,SOCK_STREAM,0);
 	if(-1 == listen_fd){
-		cout  << __FUNCTION__ << "Socket create failed!" << endl;
-		exit(EXIT_FAILURE);
+		cout  << __FUNCTION__ << " Socket create failed!" << endl;
+		std::exit(EXIT_FAILURE);
 	}
     // remove SOCKET_PATH if exists
 	remove(SOCKET_PATH);
@@ -173,15 +177,15 @@ void listenSocket(int& listen_fd)
     cout << "Binding socket..." << endl;
 	
 	if(bind(listen_fd,(sockaddr *)&server_addr,sizeof(server_addr)) < 0){
-		cout  << __FUNCTION__ << "Bind socket failed!" << endl;
-		exit(EXIT_FAILURE);
+		cout  << __FUNCTION__ << " Bind socket failed!" << endl;
+		std::exit(EXIT_FAILURE);
 	}
 	
     // listen socket
     cout << "Listening socket..." << endl;
 	if(listen(listen_fd, 10) < 0){
-		cout  << __FUNCTION__ << "Listen failed!" << endl;
-		exit(EXIT_FAILURE);
+		cout  << __FUNCTION__ << " Listen failed!" << endl;
+		std::exit(EXIT_FAILURE);
 	}
     cout << "Waiting for new requests!" << endl;
 }
@@ -195,8 +199,8 @@ epoll_addfd(int epollfd, int fd)
 	event.events = EPOLLIN | EPOLLET;
 	if(-1 == epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &event))
 	{
-		cout << __FUNCTION__ << "epoll_ctl failed" << endl;
-		exit(EXIT_FAILURE);
+		cout << __FUNCTION__ << " epoll_ctl failed" << endl;
+		std::exit(EXIT_FAILURE);
 	}
 	setNonBlocking(fd);
 }
@@ -213,13 +217,13 @@ setNonBlocking(int sock)
 	opts = fcntl(sock, F_GETFL);
 	if(opts < 0)
 	{
-		cout << __FUNCTION__ << "fcntl GETFL failed! " << endl;
-		exit(EXIT_FAILURE);
+		cout << __FUNCTION__ << " fcntl GETFL failed! " << endl;
+		std::exit(EXIT_FAILURE);
 	}
 	opts = opts | O_NONBLOCK;
 	if(fcntl(sock, F_SETFL, opts) < 0)
 	{
-		cout << __FUNCTION__ << "fcntl SETFL failed! " << endl;
-		exit(EXIT_FAILURE);
+		cout << __FUNCTION__ << " fcntl SETFL failed! " << endl;
+		std::exit(EXIT_FAILURE);
 	}
 }

@@ -54,7 +54,7 @@ Client::handleMsg(uint8_t* msg)
             file_fd = open(pathMsg->getPath().c_str(), O_APPEND | O_CREAT | O_WRONLY , S_IRWXU | S_IRWXG);
             if(-1 == file_fd)
             {
-                cout  << __FUNCTION__ << "open file failed! errno=" << errno << endl;
+                cout  << __FUNCTION__ << " open file failed! errno=" << errno << endl;
                 return;
             }
         }
@@ -73,7 +73,7 @@ Client::handleMsg(uint8_t* msg)
             int shm_fd = shm_open(shmMsg->getShmName().c_str(), O_RDWR, FILE_MODE);
             if(-1 == shm_fd)
             {
-                cout << __FUNCTION__ << "shm_open failed! errno= "  << errno << endl;
+                cout << __FUNCTION__ << " shm_open failed! errno= "  << errno << endl;
                 return;
             }
             rq = (ring_queue_t *)mmap(NULL, sizeof(ring_queue_t), PROT_READ | PROT_WRITE,
@@ -82,7 +82,7 @@ Client::handleMsg(uint8_t* msg)
         }
         break;
         default:
-            cout << __FUNCTION__ << "InterfaceMsgType not support! " << endl;
+            cout << __FUNCTION__ << " InterfaceMsgType not support! " << endl;
     }
 }
 

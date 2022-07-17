@@ -49,5 +49,5 @@ sig_int(int signo)
 {
 	(void) (signo);
 	print_cpu_time();
-	exit(0);
+	std::exit(0);
 }
