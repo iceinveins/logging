@@ -2,7 +2,6 @@
 
 #include "../../interface/include/shm.h"
 #include "../../interface/include/ipc.h"
-#include "../../interface/include/util.h"
 #include "../../interface/include/interfaceMsg.h"
 #include <unistd.h>
 #include <string>

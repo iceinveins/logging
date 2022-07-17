@@ -1,6 +1,6 @@
 #pragma once
 #include <string.h>
-#include "util.h"
+#include "byteBuffer.h"
 namespace Logging
 {
 enum InterfaceMsgType

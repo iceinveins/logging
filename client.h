@@ -1,3 +1,4 @@
+#pragma once
 #include "shm.h"
 #include <stdint.h>
 

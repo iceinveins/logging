@@ -5,8 +5,6 @@
 
 namespace Logging
 {
-void print_cpu_time();
-
 class ByteBuffer {
 public:
     static constexpr int DEFAULT_SIZE = 4096;

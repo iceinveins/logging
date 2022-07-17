@@ -16,19 +16,27 @@ void sig_int(int signo);
 int 
 main()
 {
+	Util::setCpuAffinity(1);
+	
 	Logging::Agent agent;
 	// this is just a demo, so I won't check it's return value
 	agent.start();
 	if(!agent.isConnected()) return -1;
 	agent.setLogPath();
 	agent.setShmName();
-	agent.setLogLevel(Level::DEBUG);
 
-	// test changing the logPath while connected
-	for(int i=0; i<10;++i)
+	// test Logging::Level limitation
+	for(int i=0; i<5;++i)
 	{
-		agent.write(Logging::Level::NOTICE, "bla bla blablabla");
+		agent.write(Level::DEBUG, "bla bla blablabla");	// default level=Notice, so these will not write to log
 	}
+	agent.setLogLevel(Level::DEBUG);
+	for(int i=0; i<5;++i)
+	{
+		agent.write(Level::DEBUG, "hello hello hello");	// default level=Notice, so these will not write to log
+	}
+	// test changing the logPath while connected
+	agent.write(Level::WARNING, "change to demo.log");
 	
 	agent.setLogPath("demo.log");
 
@@ -49,6 +57,6 @@ void
 sig_int(int signo)
 {
 	(void) (signo);
-	print_cpu_time();
+	Util::print_cpu_time();
 	std::exit(0);
 }

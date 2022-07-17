@@ -1,25 +1,7 @@
-#include "../include/util.h"
-#include <sys/resource.h>
-#include <iostream>
+#include "../include/byteBuffer.h"
 
 namespace Logging
 {
-void
-print_cpu_time()
-{
-	constexpr double BASE = 1000000.0;
-    double user, sys;
-    struct rusage myusage, childusage;
-    if(getrusage(RUSAGE_SELF, &myusage) < 0) return;
-    if(getrusage(RUSAGE_CHILDREN, &childusage) < 0) return;
-
-    user = (double) myusage.ru_utime.tv_sec + myusage.ru_utime.tv_usec/ BASE;
-    user += (double) childusage.ru_utime.tv_sec + childusage.ru_utime.tv_usec / BASE;
-    sys = (double) myusage.ru_stime.tv_sec + myusage.ru_stime.tv_usec/ BASE;
-    sys += (double) childusage.ru_stime.tv_sec + childusage.ru_stime.tv_usec/ BASE;
-
-    std::cout << "\nuser time = " << user << ", sys time = " << sys << std::endl;
-}
 
 ByteBuffer::ByteBuffer(uint32_t size) : wpos(0), rpos(0), buf(size)
 {
@@ -170,8 +152,7 @@ void
 ByteBuffer::printAH() 
 {
 	uint32_t length = buf.size();
-	std::cout << "ByteBuffer " << " Length= " << length << " ASCII & Hex Print" << std::endl;
-
+	std::printf("ByteBuffer Length= %d ASCII & Hex Print\n", length);
 	for (uint32_t i = 0; i < length; i++) 
 	{
 		std::printf("0x%02x ", buf[i]);

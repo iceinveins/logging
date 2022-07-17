@@ -20,12 +20,10 @@ using namespace std;
 using namespace Logging;
 
 void sig_int(int signo);
-void setCpuAffinity(int index);
 void listenSocket(int& listen_fd);
 void epoll_addfd(int epollfd, int fd);
 void epoll_removefd(int epollfd, int fd);
 void setNonBlocking(int sock);
-void handle_request(int accept_fd);
 
 constexpr int MAX_EVENTS = 10;
 constexpr int USER_LIMIT = 3;
@@ -33,7 +31,7 @@ constexpr int USER_LIMIT = 3;
 int
 main()
 {
-	setCpuAffinity(0);
+	Util::setCpuAffinity(0);
 
     int listen_fd;
 	listenSocket(listen_fd);
@@ -139,20 +137,8 @@ void
 sig_int(int signo)
 {
 	(void) (signo);
-	print_cpu_time();
+	Util::print_cpu_time();
 	std::exit(0);
-}
-
-void
-setCpuAffinity(int index)
-{
-	// set cpu affinity
-	const int NPROCESSORS = sysconf( _SC_NPROCESSORS_ONLN );
-    cpu_set_t set;
-    CPU_ZERO(&set);
-	int processor_index = index % NPROCESSORS;
-    CPU_SET(processor_index, &set);
-    sched_setaffinity(getpid(), sizeof(set), &set);
 }
 
 void listenSocket(int& listen_fd)
