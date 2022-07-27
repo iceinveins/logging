@@ -81,41 +81,40 @@ main(int argc, char** argv)
 			{
 				if(events[i].data.fd == listen_fd)			// handle listen_fd
 				{
-					accept_fd = accept(listen_fd, (sockaddr *)&cliaddr, &clilen);
+					while((accept_fd = accept(listen_fd, (sockaddr *)&cliaddr, &clilen)) > 0)
+					{
+						if(accepts.size() >= USER_LIMIT)
+						{
+							cout << __FUNCTION__ << " too many users" << endl;
+							close(accept_fd);
+							continue;
+						}
+						epoll_addfd(epollfd, accept_fd);
+						accepts[accept_fd] = make_unique<Client>();
+					}
 					if(-1 == accept_fd)
 					{
-						cout  << __FUNCTION__ << " accept failed!" << endl;
-						std::exit(EXIT_FAILURE);
+						if(errno != EAGAIN && errno != ECONNABORTED 
+						&& errno != EPROTO && errno != EINTR)
+						{
+							cout  << __FUNCTION__ << " accept failed!" << endl;
+							std::exit(EXIT_FAILURE);
+						}
 					}
-					if(accepts.size() >= USER_LIMIT)
-					{
-						cout << __FUNCTION__ << " too many users" << endl;
-						close(accept_fd);
-						continue;
-					}
-					epoll_addfd(epollfd, accept_fd);
-					accepts[accept_fd] = make_unique<Client>();
 				}
 				else if(accepts.count(events[i].data.fd))	// handle accept_fd
 				{
 					int fd = events[i].data.fd;
 					bzero(msg, SOCKET_MSG_SIZE);
-					int size = recv(fd, msg, SOCKET_MSG_SIZE, 0);
-					if(size < 0)
-					{
-						cout << __FUNCTION__ << " recv msg failed! errno= " << errno  
-							 <<	" remove client!" << endl;
-						epoll_removefd(epollfd, fd);
-						close(fd);	 
-						accepts.erase(fd);
-						continue;
-					}
-					else if(size > 0)
+					int size = 0;
+					while((size = recv(fd, msg, SOCKET_MSG_SIZE, 0)) > 0)
 					{
 						accepts[fd]->handleMsg(msg);
 					}
-					else
+					if(-1 == size && errno != EAGAIN)
 					{
+						cout << __FUNCTION__ << " recv msg failed! errno= " << errno  
+								<<	" remove client!" << endl;
 						epoll_removefd(epollfd, fd);
 						close(fd);
 						accepts.erase(fd);

@@ -32,7 +32,11 @@ main(int argc, char** argv)
 	Logging::Agent agent;
 	// this is just a demo, so I won't pay much attention on it's return value
 	agent.start();
-	if(!agent.isConnected()) return -1;
+	if(!agent.isConnected()) 
+	{
+		cout << "connected error" << endl;
+		return -1;
+	}
 	agent.setLogPath();
 	agent.setShmName();
 
